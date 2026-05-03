@@ -410,10 +410,6 @@ input:disabled {
   min-height: 150px;
 }
 
-.baseline-panel {
-  border-left: 4px solid var(--amber);
-}
-
 .record-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 300px;

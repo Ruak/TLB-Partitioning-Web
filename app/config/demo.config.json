@@ -20,7 +20,8 @@
   },
   "commands": {
     "runTestWith": "./test_with",
+    "runTestNo": "./test_no",
     "listHome": "ls",
-    "checkBinary": "ls -l ./test_with"
+    "checkBinary": "ls -l ./test_with ./test_no"
   }
 }

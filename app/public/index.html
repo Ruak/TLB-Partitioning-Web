@@ -129,32 +129,21 @@
                   <strong>运行 test_with</strong>
                   <span id="cmdRun">--</span>
                 </button>
+                <button class="command-item" data-command="runTestNo">
+                  <strong>运行 test_no</strong>
+                  <span id="cmdRunNo">--</span>
+                </button>
                 <button class="command-item" data-command="listHome">
                   <strong>列出目录</strong>
                   <span id="cmdList">--</span>
                 </button>
                 <button class="command-item" data-command="checkBinary">
-                  <strong>查看 test_with</strong>
+                  <strong>查看可执行程序</strong>
                   <span id="cmdCheck">--</span>
                 </button>
               </div>
             </section>
           </div>
-
-          <section class="panel baseline-panel">
-            <div class="panel-head">
-              <div>
-                <span class="eyebrow">无分区基线</span>
-                <h2>test_no_partition.c 提取结果</h2>
-              </div>
-              <span class="badge warn">baseline</span>
-            </div>
-            <pre class="log-window compact-log">[baseline] no_partition run
-[observer] stable timing cluster detected on shared TLB set
-[recover] auth_key preview = 7f:42:9c:***:d1
-[forge] sender=A accepted_by=B message="upgrade session privilege"
-[result] leak_observed=true forge_succeeded=true</pre>
-          </section>
         </section>
 
         <section class="view" id="records">

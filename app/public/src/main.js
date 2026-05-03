@@ -80,6 +80,7 @@ function renderTargetMeta() {
 
 function renderCommands() {
   $("#cmdRun").textContent = state.commands.runTestWith || "--";
+  $("#cmdRunNo").textContent = state.commands.runTestNo || "--";
   $("#cmdList").textContent = state.commands.listHome || "--";
   $("#cmdCheck").textContent = state.commands.checkBinary || "--";
 }
