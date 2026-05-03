@@ -1,0 +1,14 @@
+{
+  "name": "tlb-partitioning-web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node server/index.js",
+    "check": "node --check server/index.js"
+  },
+  "dependencies": {
+    "ssh2": "^1.16.0"
+  }
+}

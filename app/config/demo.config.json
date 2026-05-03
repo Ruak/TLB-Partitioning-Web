@@ -1,0 +1,28 @@
+{
+  "server": {
+    "host": "127.0.0.1",
+    "port": 5177
+  },
+  "fpgaTargets": [
+    {
+      "name": "local-fpga-board",
+      "host": "192.168.1.50",
+      "port": 22,
+      "username": "root",
+      "authProfile": "password",
+      "password": "174044",
+      "privateKeyPath": "",
+      "workingDirectory": "/root"
+    }
+  ],
+  "ssh": {
+    "connectTimeoutMs": 12000,
+    "allowTerminalInput": true,
+    "strictHostKeyChecking": false
+  },
+  "commands": {
+    "buildTestC": "true",
+    "runTestC": "./test_with",
+    "collectResult": "ls -l ./test_with"
+  }
+}
