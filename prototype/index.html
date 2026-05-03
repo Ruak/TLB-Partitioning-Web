@@ -1,0 +1,373 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>VexRiscv TLB Partitioning 安全演示平台</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar" aria-label="主导航">
+        <div class="brand">
+          <div class="brand-mark">TLB</div>
+          <div>
+            <strong>VexRiscv Lab</strong>
+            <span>Partitioning Demo</span>
+          </div>
+        </div>
+
+        <nav class="nav-list">
+          <button class="nav-item active" data-view="overview">
+            <span class="nav-icon">⌂</span>
+            <span>概览</span>
+          </button>
+          <button class="nav-item" data-view="unprotected">
+            <span class="nav-icon">!</span>
+            <span>无防护模式</span>
+          </button>
+          <button class="nav-item" data-view="protected">
+            <span class="nav-icon">◆</span>
+            <span>有防护模式</span>
+          </button>
+          <button class="nav-item" data-view="compare">
+            <span class="nav-icon">≡</span>
+            <span>结果对比</span>
+          </button>
+          <button class="nav-item" data-view="records">
+            <span class="nav-icon">▣</span>
+            <span>实验记录</span>
+          </button>
+        </nav>
+
+        <div class="sidebar-footer">
+          <span class="mini-label">演示配置</span>
+          <div class="config-line"><span>脚本</span><strong id="scriptStateMini">待机</strong></div>
+          <div class="config-line"><span>FPGA</span><strong id="fpgaStateMini">未连接</strong></div>
+        </div>
+      </aside>
+
+      <main class="workspace">
+        <header class="topbar">
+          <div>
+            <span class="eyebrow" id="modeEyebrow">当前模式</span>
+            <h1 id="pageTitle">概览</h1>
+          </div>
+          <div class="status-strip" aria-label="系统状态">
+            <span class="status-pill online"><i></i> 后端桥接层</span>
+            <span class="status-pill idle" id="scriptStatus"><i></i> 本机脚本待机</span>
+            <span class="status-pill offline" id="sshStatus"><i></i> SSH 未连接</span>
+            <span class="status-pill done"><i></i> 最近记录已载入</span>
+          </div>
+        </header>
+
+        <section class="view active" id="overview">
+          <div class="overview-grid">
+            <section class="panel intro-panel">
+              <div class="panel-head">
+                <div>
+                  <span class="eyebrow">实验目标</span>
+                  <h2>VexRiscv TLB Partitioning 安全演示平台</h2>
+                </div>
+                <span class="badge good">M1 原型</span>
+              </div>
+              <p class="lead">
+                通过本机攻击脚本和 FPGA 实机结果，对比 TLB 分区防护前后的侧信道攻击效果。
+              </p>
+              <div class="architecture">
+                <div class="arch-node user">用户 A<br /><small>认证消息</small></div>
+                <div class="arch-link"></div>
+                <div class="arch-node core">TLB / Cache<br /><small>共享微结构</small></div>
+                <div class="arch-link danger"></div>
+                <div class="arch-node attacker">监听者<br /><small>侧信道观测</small></div>
+                <div class="arch-node fpga">FPGA 板<br /><small>TLB Partitioning</small></div>
+                <div class="arch-link protect"></div>
+                <div class="arch-node console">网页控制台<br /><small>证据留痕</small></div>
+              </div>
+            </section>
+
+            <section class="panel board-panel">
+              <div class="panel-head">
+                <div>
+                  <span class="eyebrow">实机目标</span>
+                  <h2>FPGA 运行环境</h2>
+                </div>
+                <span class="badge muted">SSH Bridge</span>
+              </div>
+              <img
+                src="../../VexRiscv/scripts/Murax/iCE40-hx8k_breakout_board/img/iCE40HX8K-breakout-revA.png"
+                alt="FPGA 开发板参考图"
+              />
+              <div class="metric-row">
+                <div><span>目标</span><strong>local-fpga-board</strong></div>
+                <div><span>端口</span><strong>22</strong></div>
+                <div><span>认证</span><strong>fpga-key</strong></div>
+              </div>
+            </section>
+          </div>
+
+          <section class="dashboard-grid">
+            <article class="stat-card">
+              <span>本机后端</span>
+              <strong>可达</strong>
+              <small>WebSocket / API 桥接层模拟在线</small>
+            </article>
+            <article class="stat-card warn">
+              <span>无防护基线</span>
+              <strong>可复现</strong>
+              <small>test_no_partition.c 结果已导入样例</small>
+            </article>
+            <article class="stat-card danger">
+              <span>攻击链状态</span>
+              <strong id="attackSummary">未启动</strong>
+              <small>等待三脚本输出</small>
+            </article>
+            <article class="stat-card secure">
+              <span>分区防护</span>
+              <strong id="guardSummary">待验证</strong>
+              <small>等待 FPGA test.c 输出</small>
+            </article>
+          </section>
+        </section>
+
+        <section class="view" id="unprotected">
+          <section class="panel control-panel">
+            <div class="panel-head">
+              <div>
+                <span class="eyebrow">本机三脚本实验</span>
+                <h2>无防护攻击链控制台</h2>
+              </div>
+              <div class="button-row">
+                <button class="btn primary" id="startAttackBtn">启动实验</button>
+                <button class="btn danger-soft" id="forgeBtn">执行伪造</button>
+                <button class="btn ghost" id="stopAttackBtn">停止</button>
+                <button class="btn ghost" id="clearAttackBtn">清空输出</button>
+              </div>
+            </div>
+            <div class="evidence-strip">
+              <div>
+                <span>窃取 key 摘要</span>
+                <strong id="keyPreview">--</strong>
+              </div>
+              <div>
+                <span>伪造身份</span>
+                <strong id="forgedIdentity">--</strong>
+              </div>
+              <div>
+                <span>B 方接收</span>
+                <strong id="receiverAccepted">等待</strong>
+              </div>
+            </div>
+          </section>
+
+          <div class="role-grid">
+            <article class="panel role-card">
+              <div class="panel-head compact">
+                <h3>用户 A</h3>
+                <span class="badge muted">sender</span>
+              </div>
+              <pre class="log-window" id="logA">[idle] 等待启动 user_a_script</pre>
+            </article>
+            <article class="panel role-card">
+              <div class="panel-head compact">
+                <h3>用户 B</h3>
+                <span class="badge muted">receiver</span>
+              </div>
+              <pre class="log-window" id="logB">[idle] 等待启动 user_b_script</pre>
+            </article>
+            <article class="panel role-card attacker-card">
+              <div class="panel-head compact">
+                <h3>监听者 / 攻击者</h3>
+                <span class="badge bad">observer</span>
+              </div>
+              <pre class="log-window" id="logAttacker">[idle] 等待启动 attacker_script</pre>
+            </article>
+          </div>
+
+          <section class="panel">
+            <div class="panel-head">
+              <div>
+                <span class="eyebrow">事件时间线</span>
+                <h2>攻击链路</h2>
+              </div>
+              <span class="badge" id="attackPhase">未开始</span>
+            </div>
+            <ol class="timeline" id="attackTimeline">
+              <li data-step="init"><span></span>初始化通信</li>
+              <li data-step="observe"><span></span>侧信道观测</li>
+              <li data-step="recover"><span></span>密钥恢复</li>
+              <li data-step="forge"><span></span>伪造身份</li>
+              <li data-step="inject"><span></span>注入消息</li>
+              <li data-step="result"><span></span>攻击结论</li>
+            </ol>
+          </section>
+        </section>
+
+        <section class="view" id="protected">
+          <div class="protected-layout">
+            <section class="panel ssh-panel">
+              <div class="panel-head">
+                <div>
+                  <span class="eyebrow">SSH 目标</span>
+                  <h2>FPGA 连接</h2>
+                </div>
+                <span class="badge muted" id="sshBadge">未连接</span>
+              </div>
+              <form class="ssh-form">
+                <label>Host<input value="192.168.1.100" /></label>
+                <label>Port<input value="22" /></label>
+                <label>Username<input value="root" /></label>
+                <label>认证方式<select><option>本地私钥配置：fpga-key</option><option>临时密码</option></select></label>
+              </form>
+              <div class="button-row full">
+                <button class="btn primary" id="connectBtn">连接 FPGA</button>
+                <button class="btn ghost" id="disconnectBtn">断开</button>
+              </div>
+            </section>
+
+            <section class="panel terminal-panel">
+              <div class="panel-head">
+                <div>
+                  <span class="eyebrow">WebSocket SSH</span>
+                  <h2>内嵌终端</h2>
+                </div>
+                <div class="button-row">
+                  <button class="icon-btn" id="copyTerminalBtn" title="复制输出">⧉</button>
+                  <button class="icon-btn" id="clearTerminalBtn" title="清屏">⌫</button>
+                </div>
+              </div>
+              <pre class="terminal" id="terminalOutput">fpga@bridge:~$ 等待连接...</pre>
+            </section>
+
+            <section class="panel command-panel">
+              <div class="panel-head">
+                <div>
+                  <span class="eyebrow">预设命令</span>
+                  <h2>FPGA 实验控制</h2>
+                </div>
+              </div>
+              <div class="command-list">
+                <button class="command-item" id="buildTestBtn"><strong>编译 test.c</strong><span>gcc test.c -o test</span></button>
+                <button class="command-item" id="runTestBtn"><strong>运行 test.c</strong><span>./test</span></button>
+                <button class="command-item" id="collectBtn"><strong>拉取结果</strong><span>cat result.log</span></button>
+                <button class="command-item" id="rerunBtn"><strong>重新运行</strong><span>build + run + collect</span></button>
+              </div>
+            </section>
+
+          </div>
+
+          <section class="panel baseline-panel">
+            <div class="panel-head">
+              <div>
+                <span class="eyebrow">无分区基线</span>
+                <h2>test_no_partition.c 提取结果</h2>
+              </div>
+              <span class="badge warn">baseline</span>
+            </div>
+            <pre class="log-window compact-log">[baseline] no_partition run #42
+[observer] stable timing cluster detected on shared TLB set
+[recover] auth_key preview = 7f:42:9c:***:d1
+[forge] sender=A accepted_by=B message="upgrade session privilege"
+[result] leak_observed=true forge_succeeded=true</pre>
+          </section>
+        </section>
+
+        <section class="view" id="compare">
+          <section class="panel">
+            <div class="panel-head">
+              <div>
+                <span class="eyebrow">结构化证据</span>
+                <h2>防护前后结果对比</h2>
+              </div>
+              <button class="btn primary" id="exportCompareBtn">导出记录</button>
+            </div>
+            <p class="conclusion" id="compareConclusion">
+              FPGA 有防护模式只展示 SSH 终端中的 test.c 输出；防护结论以终端原始结果为准，不再额外抽取摘要卡片。
+            </p>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>指标</th>
+                    <th>无防护模式</th>
+                    <th>TLB Partitioning 防护模式</th>
+                    <th>证据来源</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>认证密钥可恢复</td>
+                    <td><span class="table-bad">是</span></td>
+                    <td><span class="table-good">否</span></td>
+                    <td>攻击者日志 / FPGA 终端</td>
+                  </tr>
+                  <tr>
+                    <td>可伪造身份</td>
+                    <td><span class="table-bad">是</span></td>
+                    <td><span class="table-good">否</span></td>
+                    <td>B 方接收结果</td>
+                  </tr>
+                  <tr>
+                    <td>侧信道信号稳定性</td>
+                    <td>高</td>
+                    <td>低</td>
+                    <td>timing cluster / miss pattern</td>
+                  </tr>
+                  <tr>
+                    <td>实验来源</td>
+                    <td>本机三脚本</td>
+                    <td>FPGA SSH 实机</td>
+                    <td>运行记录</td>
+                  </tr>
+                  <tr>
+                    <td>原始输出</td>
+                    <td><button class="link-btn" data-view="records">查看日志</button></td>
+                    <td><button class="link-btn" data-view="protected">查看终端</button></td>
+                    <td>当前会话缓存</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </section>
+
+        <section class="view" id="records">
+          <section class="panel">
+            <div class="panel-head">
+              <div>
+                <span class="eyebrow">实验留痕</span>
+                <h2>本次演示记录</h2>
+              </div>
+              <div class="button-row">
+                <button class="btn ghost" id="resetDemoBtn">重置状态</button>
+                <button class="btn primary" id="exportRecordsBtn">导出 JSON</button>
+              </div>
+            </div>
+            <div class="record-layout">
+              <pre class="record-log" id="recordLog">[system] prototype loaded
+[config] userA/userB/attacker scripts pending
+[config] fpga target local-fpga-board pending</pre>
+              <div class="artifact-list">
+                <article>
+                  <span>ExperimentRun</span>
+                  <strong id="runId">demo-2026-04-25-001</strong>
+                </article>
+                <article>
+                  <span>AttackEvidence</span>
+                  <strong id="attackEvidenceState">等待无防护实验</strong>
+                </article>
+                <article>
+                  <span>FpgaEvidence</span>
+                  <strong id="fpgaEvidenceState">等待 FPGA 实验</strong>
+                </article>
+              </div>
+            </div>
+          </section>
+        </section>
+      </main>
+    </div>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <script src="./app.js"></script>
+  </body>
+</html>

@@ -3,127 +3,196 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>VexRiscv FPGA Console</title>
+    <title>VexRiscv TLB Partitioning 安全演示平台</title>
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
-    <div class="shell">
-      <aside class="sidebar">
+    <div class="app-shell">
+      <aside class="sidebar" aria-label="主导航">
         <div class="brand">
           <div class="brand-mark">TLB</div>
           <div>
-            <strong>VexRiscv</strong>
-            <span>FPGA SSH Console</span>
+            <strong>VexRiscv Lab</strong>
+            <span>Partitioning Demo</span>
           </div>
         </div>
-        <nav>
-          <button class="nav-item active" data-view="console">有防护模式</button>
-          <button class="nav-item" data-view="records">运行记录</button>
-          <button class="nav-item disabled" disabled>无防护模式</button>
+
+        <nav class="nav-list">
+          <button class="nav-item disabled" data-view="overview" disabled>
+            <span class="nav-icon">⌂</span>
+            <span>概览</span>
+          </button>
+          <button class="nav-item disabled" data-view="unprotected" disabled>
+            <span class="nav-icon">!</span>
+            <span>无防护模式</span>
+          </button>
+          <button class="nav-item active" data-view="protected">
+            <span class="nav-icon">◆</span>
+            <span>有防护模式</span>
+          </button>
+          <button class="nav-item disabled" data-view="compare" disabled>
+            <span class="nav-icon">≡</span>
+            <span>结果对比</span>
+          </button>
+          <button class="nav-item" data-view="records">
+            <span class="nav-icon">▣</span>
+            <span>实验记录</span>
+          </button>
         </nav>
-        <div class="sidebar-status">
-          <span>SSH</span>
-          <strong id="sideStatus">未连接</strong>
+
+        <div class="sidebar-footer">
+          <span class="mini-label">演示配置</span>
+          <div class="config-line"><span>后端</span><strong id="backendMini">检查中</strong></div>
+          <div class="config-line"><span>FPGA</span><strong id="sideStatus">未连接</strong></div>
         </div>
       </aside>
 
       <main class="workspace">
         <header class="topbar">
           <div>
-            <span class="eyebrow">真实链路</span>
-            <h1>FPGA SSH 与 test_with 运行控制台</h1>
+            <span class="eyebrow" id="modeEyebrow">实验工作区</span>
+            <h1 id="pageTitle">有防护模式</h1>
           </div>
-          <div class="status-row">
-            <span class="pill" id="backendStatus">后端检查中</span>
-            <span class="pill offline" id="sshStatus">SSH 未连接</span>
-            <span class="pill idle" id="resultStatus">结果待采集</span>
+          <div class="status-strip" aria-label="系统状态">
+            <span class="status-pill idle" id="backendStatus"><i></i> 后端检查中</span>
+            <span class="status-pill offline" id="sshStatus"><i></i> SSH 未连接</span>
+            <span class="status-pill idle" id="resultStatus"><i></i> 结果待采集</span>
           </div>
         </header>
 
-        <section class="view active" id="console">
-          <div class="grid">
-            <section class="panel">
+        <section class="view active" id="protected">
+          <div class="protected-layout">
+            <section class="panel ssh-panel">
               <div class="panel-head">
                 <div>
-                  <span class="eyebrow">目标</span>
-                  <h2>SSH 连接</h2>
+                  <span class="eyebrow">SSH 目标</span>
+                  <h2>FPGA 连接</h2>
                 </div>
+                <span class="badge muted" id="sshBadge">未连接</span>
               </div>
-              <label>
-                FPGA Target
-                <select id="targetSelect"></select>
-              </label>
-              <dl class="meta" id="targetMeta"></dl>
-              <div class="buttons">
-                <button class="btn primary" id="connectBtn">连接</button>
+              <form class="ssh-form">
+                <label>
+                  Target
+                  <select id="targetSelect"></select>
+                </label>
+                <label>
+                  Host
+                  <input id="targetHost" disabled value="--" />
+                </label>
+                <label>
+                  Port
+                  <input id="targetPort" disabled value="--" />
+                </label>
+                <label>
+                  Username
+                  <input id="targetUser" disabled value="--" />
+                </label>
+                <label>
+                  Workdir
+                  <input id="targetWorkdir" disabled value="--" />
+                </label>
+              </form>
+              <div class="button-row full">
+                <button class="btn primary" id="connectBtn">连接 FPGA</button>
                 <button class="btn ghost" id="disconnectBtn">断开</button>
-              </div>
-            </section>
-
-            <section class="panel">
-              <div class="panel-head">
-                <div>
-                  <span class="eyebrow">预设命令</span>
-                  <h2>板上程序</h2>
-                </div>
-              </div>
-              <div class="commands">
-                <button class="command" data-command="runTestWith">
-                  <strong>运行 test_with</strong>
-                  <span id="cmdRun">--</span>
-                </button>
-                <button class="command" data-command="listHome">
-                  <strong>列出目录</strong>
-                  <span id="cmdList">--</span>
-                </button>
-                <button class="command" data-command="checkBinary">
-                  <strong>查看 test_with</strong>
-                  <span id="cmdCheck">--</span>
-                </button>
               </div>
             </section>
 
             <section class="panel terminal-panel">
               <div class="panel-head">
                 <div>
-                  <span class="eyebrow">Terminal</span>
-                  <h2>SSH 输出</h2>
+                  <span class="eyebrow">WebSocket SSH</span>
+                  <h2>内嵌终端</h2>
                 </div>
-                <div class="buttons">
+                <div class="button-row">
                   <button class="btn ghost" id="markCompleteBtn">标记结果已采集</button>
                   <button class="icon-btn" id="copyBtn" title="复制输出">⧉</button>
                   <button class="icon-btn" id="clearBtn" title="清屏">⌫</button>
                 </div>
               </div>
-              <pre class="terminal" id="terminalOutput">等待后端连接...</pre>
+              <pre class="terminal" id="terminalOutput">fpga@bridge:~$ 等待连接...</pre>
               <form class="terminal-input" id="terminalForm">
                 <input id="terminalInput" autocomplete="off" placeholder="像 SSH 一样输入命令，例如 ./test_with" />
                 <button class="btn primary" type="submit">发送</button>
               </form>
             </section>
+
+            <section class="panel command-panel">
+              <div class="panel-head">
+                <div>
+                  <span class="eyebrow">预设命令</span>
+                  <h2>FPGA 实验控制</h2>
+                </div>
+              </div>
+              <div class="command-list">
+                <button class="command-item" data-command="runTestWith">
+                  <strong>运行 test_with</strong>
+                  <span id="cmdRun">--</span>
+                </button>
+                <button class="command-item" data-command="listHome">
+                  <strong>列出目录</strong>
+                  <span id="cmdList">--</span>
+                </button>
+                <button class="command-item" data-command="checkBinary">
+                  <strong>查看 test_with</strong>
+                  <span id="cmdCheck">--</span>
+                </button>
+              </div>
+            </section>
           </div>
+
+          <section class="panel baseline-panel">
+            <div class="panel-head">
+              <div>
+                <span class="eyebrow">无分区基线</span>
+                <h2>test_no_partition.c 提取结果</h2>
+              </div>
+              <span class="badge warn">baseline</span>
+            </div>
+            <pre class="log-window compact-log">[baseline] no_partition run
+[observer] stable timing cluster detected on shared TLB set
+[recover] auth_key preview = 7f:42:9c:***:d1
+[forge] sender=A accepted_by=B message="upgrade session privilege"
+[result] leak_observed=true forge_succeeded=true</pre>
+          </section>
         </section>
 
         <section class="view" id="records">
           <section class="panel">
             <div class="panel-head">
               <div>
-                <span class="eyebrow">最近结果</span>
-                <h2>test_with 输出缓存</h2>
+                <span class="eyebrow">实验留痕</span>
+                <h2>本次演示记录</h2>
               </div>
               <button class="btn ghost" id="refreshResultBtn">刷新</button>
             </div>
-            <div class="record-grid">
-              <div><span>命令</span><strong id="latestCommand">--</strong></div>
-              <div><span>状态</span><strong id="latestStatus">--</strong></div>
-              <div><span>开始时间</span><strong id="latestStartedAt">--</strong></div>
+            <div class="record-layout">
+              <pre class="record-log" id="latestOutput">暂无输出</pre>
+              <div class="artifact-list">
+                <article>
+                  <span>命令</span>
+                  <strong id="latestCommand">--</strong>
+                </article>
+                <article>
+                  <span>状态</span>
+                  <strong id="latestStatus">--</strong>
+                </article>
+                <article>
+                  <span>开始时间</span>
+                  <strong id="latestStartedAt">--</strong>
+                </article>
+                <article>
+                  <span>结束时间</span>
+                  <strong id="latestEndedAt">--</strong>
+                </article>
+              </div>
             </div>
-            <pre class="terminal record-terminal" id="latestOutput">暂无输出</pre>
           </section>
         </section>
       </main>
     </div>
-    <div class="toast" id="toast"></div>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
     <script type="module" src="./src/main.js"></script>
   </body>
 </html>

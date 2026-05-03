@@ -6,6 +6,11 @@ const state = {
   terminalText: ""
 };
 
+const views = {
+  protected: "有防护模式",
+  records: "实验记录"
+};
+
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => [...document.querySelectorAll(selector)];
 
@@ -24,21 +29,37 @@ function stripAnsi(value) {
     .replace(/\r/g, "\n");
 }
 
+function setPill(node, className, text) {
+  node.className = `status-pill ${className}`;
+  node.innerHTML = `<i></i> ${text}`;
+}
+
+function setView(view) {
+  if (!views[view]) return;
+  $$(".view").forEach((node) => node.classList.toggle("active", node.id === view));
+  $$(".nav-item[data-view]").forEach((button) => {
+    button.classList.toggle("active", button.dataset.view === view);
+  });
+  $("#pageTitle").textContent = views[view];
+  $("#modeEyebrow").textContent = "实验工作区";
+}
+
 function appendTerminal(text) {
   state.terminalText += stripAnsi(text);
   if (state.terminalText.length > 60000) {
     state.terminalText = state.terminalText.slice(-60000);
   }
   const node = $("#terminalOutput");
-  node.textContent = state.terminalText || "等待终端输出...";
+  node.textContent = state.terminalText || "fpga@bridge:~$ 等待终端输出...";
   node.scrollTop = node.scrollHeight;
 }
 
 function setStatus(session) {
   const connected = session.connected;
-  $("#sshStatus").textContent = connected ? "SSH 已连接" : `SSH ${session.status || "未连接"}`;
-  $("#sshStatus").className = `pill ${connected ? "online" : "offline"}`;
+  setPill($("#sshStatus"), connected ? "online" : "offline", connected ? "SSH 已连接" : `SSH ${session.status || "未连接"}`);
   $("#sideStatus").textContent = connected ? "已连接" : "未连接";
+  $("#sshBadge").textContent = connected ? "已连接" : "未连接";
+  $("#sshBadge").className = `badge ${connected ? "good" : "muted"}`;
 }
 
 function renderTargets() {
@@ -51,11 +72,10 @@ function renderTargets() {
 function renderTargetMeta() {
   const target = state.targets.find((item) => item.name === $("#targetSelect").value) || state.targets[0];
   if (!target) return;
-  $("#targetMeta").innerHTML = `
-    <div><dt>Host</dt><dd>${escapeHtml(target.host)}:${escapeHtml(String(target.port || 22))}</dd></div>
-    <div><dt>User</dt><dd>${escapeHtml(target.username)}</dd></div>
-    <div><dt>Workdir</dt><dd>${escapeHtml(target.workingDirectory || "~")}</dd></div>
-  `;
+  $("#targetHost").value = target.host || "--";
+  $("#targetPort").value = String(target.port || 22);
+  $("#targetUser").value = target.username || "--";
+  $("#targetWorkdir").value = target.workingDirectory || "~";
 }
 
 function renderCommands() {
@@ -67,28 +87,27 @@ function renderCommands() {
 function renderLatestResult(result) {
   const status = result?.status || "idle";
   const statusMeta = {
-    running: { label: "结果采集中", className: "pill idle" },
-    captured: { label: "结果已采集", className: "pill online" },
-    idle: { label: "结果待采集", className: "pill" }
+    running: { label: "结果采集中", recordLabel: "采集中", className: "idle" },
+    captured: { label: "结果已采集", recordLabel: "已采集", className: "done" },
+    idle: { label: "结果待采集", recordLabel: "待采集", className: "idle" }
   };
-  const meta = statusMeta[status] || { label: status, className: "pill" };
+  const meta = statusMeta[status] || { label: status, recordLabel: status, className: "idle" };
 
   $("#latestCommand").textContent = result?.command || "--";
-  $("#latestStatus").textContent = status;
+  $("#latestStatus").textContent = meta.recordLabel;
   $("#latestStartedAt").textContent = result?.startedAt || "--";
+  $("#latestEndedAt").textContent = result?.endedAt || "--";
   const latestOutput = $("#latestOutput");
   latestOutput.textContent = result?.output ? stripAnsi(result.output) : "暂无输出";
   latestOutput.scrollTop = latestOutput.scrollHeight;
-  $("#resultStatus").textContent = meta.label;
-  $("#resultStatus").className = meta.className;
+  setPill($("#resultStatus"), meta.className, meta.label);
 }
 
 function bindEvents() {
   $$(".nav-item[data-view]").forEach((button) => {
     button.addEventListener("click", () => {
-      $$(".nav-item").forEach((item) => item.classList.remove("active"));
-      button.classList.add("active");
-      $$(".view").forEach((view) => view.classList.toggle("active", view.id === button.dataset.view));
+      if (button.disabled) return;
+      setView(button.dataset.view);
     });
   });
 
@@ -106,7 +125,7 @@ function bindEvents() {
     toast("断开请求已发送");
   });
 
-  $$(".command").forEach((button) => {
+  $$(".command-item[data-command]").forEach((button) => {
     button.addEventListener("click", async () => {
       const session = await apiPost("/api/fpga/run/test-partition", { commandKey: button.dataset.command });
       setStatus(session);
@@ -125,7 +144,7 @@ function bindEvents() {
 
   $("#clearBtn").addEventListener("click", () => {
     state.terminalText = "";
-    $("#terminalOutput").textContent = "";
+    $("#terminalOutput").textContent = "fpga@bridge:~$";
   });
 
   $("#copyBtn").addEventListener("click", async () => {
@@ -145,6 +164,7 @@ function bindEvents() {
 
   $("#refreshResultBtn").addEventListener("click", async () => {
     renderLatestResult(await apiGet("/api/fpga/results/latest"));
+    toast("实验记录已刷新");
   });
 }
 
@@ -157,8 +177,8 @@ function bindEventSource() {
   source.addEventListener("status", (event) => setStatus(JSON.parse(event.data)));
   source.addEventListener("result", (event) => renderLatestResult(JSON.parse(event.data)));
   source.onerror = () => {
-    $("#backendStatus").textContent = "事件流重连中";
-    $("#backendStatus").className = "pill idle";
+    setPill($("#backendStatus"), "idle", "事件流重连中");
+    $("#backendMini").textContent = "重连中";
   };
 }
 
@@ -173,10 +193,11 @@ function escapeHtml(value) {
 async function init() {
   bindEvents();
   bindEventSource();
+  setView("protected");
 
   const health = await apiGet("/api/health");
-  $("#backendStatus").textContent = "后端在线";
-  $("#backendStatus").className = "pill online";
+  setPill($("#backendStatus"), "online", "后端桥接层");
+  $("#backendMini").textContent = "在线";
   setStatus(health.session);
   renderLatestResult(health.session.latestResult);
 
@@ -189,7 +210,7 @@ async function init() {
 }
 
 init().catch((error) => {
-  $("#backendStatus").textContent = "后端异常";
-  $("#backendStatus").className = "pill offline";
+  setPill($("#backendStatus"), "offline", "后端异常");
+  $("#backendMini").textContent = "异常";
   appendTerminal(`[frontend error] ${error.message}\n`);
 });
