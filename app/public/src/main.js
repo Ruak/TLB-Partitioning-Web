@@ -65,12 +65,22 @@ function renderCommands() {
 }
 
 function renderLatestResult(result) {
+  const status = result?.status || "idle";
+  const statusMeta = {
+    running: { label: "结果采集中", className: "pill idle" },
+    captured: { label: "结果已采集", className: "pill online" },
+    idle: { label: "结果待采集", className: "pill" }
+  };
+  const meta = statusMeta[status] || { label: status, className: "pill" };
+
   $("#latestCommand").textContent = result?.command || "--";
-  $("#latestStatus").textContent = result?.status || "--";
+  $("#latestStatus").textContent = status;
   $("#latestStartedAt").textContent = result?.startedAt || "--";
-  $("#latestOutput").textContent = result?.output ? stripAnsi(result.output) : "暂无输出";
-  $("#resultStatus").textContent = result?.status === "running" ? "结果采集中" : "结果待采集";
-  $("#resultStatus").className = `pill ${result?.status === "running" ? "idle" : ""}`;
+  const latestOutput = $("#latestOutput");
+  latestOutput.textContent = result?.output ? stripAnsi(result.output) : "暂无输出";
+  latestOutput.scrollTop = latestOutput.scrollHeight;
+  $("#resultStatus").textContent = meta.label;
+  $("#resultStatus").className = meta.className;
 }
 
 function bindEvents() {
@@ -128,7 +138,9 @@ function bindEvents() {
   });
 
   $("#markCompleteBtn").addEventListener("click", async () => {
-    renderLatestResult(await apiPost("/api/fpga/results/mark-complete"));
+    const result = await apiPost("/api/fpga/results/mark-complete");
+    renderLatestResult(result);
+    toast(result?.status === "captured" ? "结果已标记为已采集" : "当前没有正在采集的结果");
   });
 
   $("#refreshResultBtn").addEventListener("click", async () => {
