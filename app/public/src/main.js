@@ -3,7 +3,8 @@ import { apiGet, apiPost } from "./api.js";
 const state = {
   targets: [],
   commands: {},
-  terminalText: ""
+  terminalText: "",
+  resultsByCommand: {}
 };
 
 const views = {
@@ -85,23 +86,53 @@ function renderCommands() {
   $("#cmdCheck").textContent = state.commands.checkBinary || "--";
 }
 
-function renderLatestResult(result) {
-  const status = result?.status || "idle";
+function getStatusMeta(status) {
   const statusMeta = {
     running: { label: "结果采集中", recordLabel: "采集中", className: "idle" },
     captured: { label: "结果已采集", recordLabel: "已采集", className: "done" },
     idle: { label: "结果待采集", recordLabel: "待采集", className: "idle" }
   };
-  const meta = statusMeta[status] || { label: status, recordLabel: status, className: "idle" };
+  return statusMeta[status || "idle"] || { label: status, recordLabel: status, className: "idle" };
+}
 
-  $("#latestCommand").textContent = result?.command || "--";
-  $("#latestStatus").textContent = meta.recordLabel;
-  $("#latestStartedAt").textContent = result?.startedAt || "--";
-  $("#latestEndedAt").textContent = result?.endedAt || "--";
-  const latestOutput = $("#latestOutput");
-  latestOutput.textContent = result?.output ? stripAnsi(result.output) : "暂无输出";
-  latestOutput.scrollTop = latestOutput.scrollHeight;
+function renderResultCard(prefix, result) {
+  const status = result?.status || "idle";
+  const meta = getStatusMeta(status);
+  const statusNode = $(`#${prefix}Status`);
+  statusNode.textContent = meta.recordLabel;
+  statusNode.className = `badge ${meta.className}`;
+  $(`#${prefix}Command`).textContent = result?.command || "--";
+  $(`#${prefix}StartedAt`).textContent = result?.startedAt || "--";
+  $(`#${prefix}EndedAt`).textContent = result?.endedAt || "--";
+  const outputNode = $(`#${prefix}Output`);
+  outputNode.textContent = result?.output ? stripAnsi(result.output) : "暂无输出";
+  outputNode.scrollTop = outputNode.scrollHeight;
+}
+
+function renderResultsByCommand(resultsByCommand = state.resultsByCommand) {
+  state.resultsByCommand = resultsByCommand || {};
+  renderResultCard("testWith", state.resultsByCommand.runTestWith);
+  renderResultCard("testNo", state.resultsByCommand.runTestNo);
+}
+
+function renderLatestResult(result) {
+  const status = result?.status || "idle";
+  const meta = getStatusMeta(status);
+
   setPill($("#resultStatus"), meta.className, meta.label);
+}
+
+function renderResultPayload(payload) {
+  if (payload?.resultsByCommand) {
+    renderResultsByCommand(payload.resultsByCommand);
+    renderLatestResult(payload.latestResult);
+    return;
+  }
+  if (payload?.commandKey) {
+    state.resultsByCommand[payload.commandKey] = payload;
+    renderResultsByCommand();
+  }
+  renderLatestResult(payload);
 }
 
 function bindEvents() {
@@ -130,7 +161,7 @@ function bindEvents() {
     button.addEventListener("click", async () => {
       const session = await apiPost("/api/fpga/run/test-partition", { commandKey: button.dataset.command });
       setStatus(session);
-      renderLatestResult(session.latestResult);
+      renderResultPayload(session);
     });
   });
 
@@ -159,12 +190,16 @@ function bindEvents() {
 
   $("#markCompleteBtn").addEventListener("click", async () => {
     const result = await apiPost("/api/fpga/results/mark-complete");
+    if (result?.commandKey) {
+      state.resultsByCommand[result.commandKey] = result;
+      renderResultsByCommand();
+    }
     renderLatestResult(result);
     toast(result?.status === "captured" ? "结果已标记为已采集" : "当前没有正在采集的结果");
   });
 
   $("#refreshResultBtn").addEventListener("click", async () => {
-    renderLatestResult(await apiGet("/api/fpga/results/latest"));
+    renderResultPayload(await apiGet("/api/fpga/results"));
     toast("实验记录已刷新");
   });
 }
@@ -176,7 +211,7 @@ function bindEventSource() {
     appendTerminal(payload.text);
   });
   source.addEventListener("status", (event) => setStatus(JSON.parse(event.data)));
-  source.addEventListener("result", (event) => renderLatestResult(JSON.parse(event.data)));
+  source.addEventListener("result", (event) => renderResultPayload(JSON.parse(event.data)));
   source.onerror = () => {
     setPill($("#backendStatus"), "idle", "事件流重连中");
     $("#backendMini").textContent = "重连中";
@@ -200,7 +235,7 @@ async function init() {
   setPill($("#backendStatus"), "online", "后端桥接层");
   $("#backendMini").textContent = "在线";
   setStatus(health.session);
-  renderLatestResult(health.session.latestResult);
+  renderResultPayload(health.session);
 
   const payload = await apiGet("/api/fpga/targets");
   state.targets = payload.targets;

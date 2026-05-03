@@ -48,6 +48,14 @@ async function routeApi(request, response, url) {
       return true;
     }
 
+    if (request.method === "GET" && url.pathname === "/api/fpga/results") {
+      sendJson(response, 200, {
+        latestResult: sshSession.latestResult,
+        resultsByCommand: sshSession.resultsByCommand
+      });
+      return true;
+    }
+
     if (request.method === "POST" && url.pathname === "/api/fpga/ssh/connect") {
       const body = await readJson(request);
       sendJson(response, 200, sshSession.connect(body.targetName || config.fpgaTargets[0].name));

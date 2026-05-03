@@ -4,6 +4,17 @@ function nowIso() {
   return new Date().toISOString();
 }
 
+function emptyResult(commandKey = null) {
+  return {
+    status: "idle",
+    commandKey,
+    command: null,
+    startedAt: null,
+    endedAt: null,
+    output: ""
+  };
+}
+
 export class SshSession {
   constructor(config, hub) {
     this.config = config;
@@ -12,13 +23,11 @@ export class SshSession {
     this.shell = null;
     this.target = null;
     this.status = "idle";
-    this.latestResult = {
-      status: "idle",
-      commandKey: null,
-      command: null,
-      startedAt: null,
-      endedAt: null,
-      output: ""
+    this.activeResultKey = null;
+    this.latestResult = emptyResult();
+    this.resultsByCommand = {
+      runTestWith: emptyResult("runTestWith"),
+      runTestNo: emptyResult("runTestNo")
     };
   }
 
@@ -31,7 +40,8 @@ export class SshSession {
       status: this.status,
       connected: this.connected,
       target: this.target ? this.publicTarget(this.target) : null,
-      latestResult: this.latestResult
+      latestResult: this.latestResult,
+      resultsByCommand: this.resultsByCommand
     };
   }
 
@@ -161,7 +171,14 @@ export class SshSession {
       ? `cd ${this.shellQuote(this.target.workingDirectory)} && ${command}`
       : command;
 
-    this.latestResult = {
+    if (!this.isResultCommand(commandKey)) {
+      this.shell.write(`${fullCommand}\n`);
+      this.hub.emit("terminal", { stream: "stdin", text: `$ ${fullCommand}\n` });
+      return this.snapshot();
+    }
+
+    this.closeActiveResult();
+    const result = {
       status: "running",
       commandKey,
       command: fullCommand,
@@ -169,29 +186,59 @@ export class SshSession {
       endedAt: null,
       output: ""
     };
-    this.hub.emit("result", this.latestResult);
+    this.activeResultKey = commandKey;
+    this.latestResult = result;
+    this.resultsByCommand[commandKey] = result;
+    this.emitResult(result);
     this.shell.write(`${fullCommand}\n`);
     this.hub.emit("terminal", { stream: "stdin", text: `$ ${fullCommand}\n` });
     return this.snapshot();
   }
 
   appendOutput(text) {
-    if (this.latestResult.status === "running") {
-      this.latestResult.output += text;
-      if (this.latestResult.output.length > 30000) {
-        this.latestResult.output = this.latestResult.output.slice(-30000);
+    const result = this.activeResultKey ? this.resultsByCommand[this.activeResultKey] : null;
+    if (result?.status === "running") {
+      result.output += text;
+      if (result.output.length > 30000) {
+        result.output = result.output.slice(-30000);
       }
-      this.hub.emit("result", this.latestResult);
+      this.latestResult = result;
+      this.emitResult(result);
     }
   }
 
   markLatestComplete() {
-    if (this.latestResult.status === "running") {
-      this.latestResult.status = "captured";
-      this.latestResult.endedAt = nowIso();
-      this.hub.emit("result", this.latestResult);
+    const result = this.activeResultKey ? this.resultsByCommand[this.activeResultKey] : this.latestResult;
+    if (result?.status === "running") {
+      result.status = "captured";
+      result.endedAt = nowIso();
+      this.latestResult = result;
+      this.emitResult(result);
+      this.activeResultKey = null;
     }
     return this.latestResult;
+  }
+
+  closeActiveResult() {
+    const result = this.activeResultKey ? this.resultsByCommand[this.activeResultKey] : null;
+    if (result?.status === "running") {
+      result.status = "captured";
+      result.endedAt = nowIso();
+      this.latestResult = result;
+      this.emitResult(result);
+    }
+    this.activeResultKey = null;
+  }
+
+  emitResult(result) {
+    this.hub.emit("result", {
+      latestResult: result,
+      resultsByCommand: this.resultsByCommand
+    });
+  }
+
+  isResultCommand(commandKey) {
+    return commandKey === "runTestWith" || commandKey === "runTestNo";
   }
 
   shellQuote(value) {

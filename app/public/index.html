@@ -156,25 +156,37 @@
               <button class="btn ghost" id="refreshResultBtn">刷新</button>
             </div>
             <div class="record-layout">
-              <pre class="record-log" id="latestOutput">暂无输出</pre>
-              <div class="artifact-list">
-                <article>
-                  <span>命令</span>
-                  <strong id="latestCommand">--</strong>
-                </article>
-                <article>
-                  <span>状态</span>
-                  <strong id="latestStatus">--</strong>
-                </article>
-                <article>
-                  <span>开始时间</span>
-                  <strong id="latestStartedAt">--</strong>
-                </article>
-                <article>
-                  <span>结束时间</span>
-                  <strong id="latestEndedAt">--</strong>
-                </article>
-              </div>
+              <article class="result-card">
+                <div class="result-head">
+                  <div>
+                    <span class="eyebrow">test_with</span>
+                    <h3>有防护输出</h3>
+                  </div>
+                  <span class="badge idle" id="testWithStatus">待采集</span>
+                </div>
+                <div class="artifact-list compact">
+                  <article><span>命令</span><strong id="testWithCommand">--</strong></article>
+                  <article><span>开始时间</span><strong id="testWithStartedAt">--</strong></article>
+                  <article><span>结束时间</span><strong id="testWithEndedAt">--</strong></article>
+                </div>
+                <pre class="record-log" id="testWithOutput">暂无输出</pre>
+              </article>
+
+              <article class="result-card">
+                <div class="result-head">
+                  <div>
+                    <span class="eyebrow">test_no</span>
+                    <h3>无防护输出</h3>
+                  </div>
+                  <span class="badge idle" id="testNoStatus">待采集</span>
+                </div>
+                <div class="artifact-list compact">
+                  <article><span>命令</span><strong id="testNoCommand">--</strong></article>
+                  <article><span>开始时间</span><strong id="testNoStartedAt">--</strong></article>
+                  <article><span>结束时间</span><strong id="testNoEndedAt">--</strong></article>
+                </div>
+                <pre class="record-log" id="testNoOutput">暂无输出</pre>
+              </article>
             </div>
           </section>
         </section>
