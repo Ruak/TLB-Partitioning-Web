@@ -1,15 +1,13 @@
 export async function apiGet(path) {
-  const response = await fetch(path);
-  return readResponse(response);
+  return readResponse(await fetch(path));
 }
 
 export async function apiPost(path, body = {}) {
-  const response = await fetch(path, {
+  return readResponse(await fetch(path, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  return readResponse(response);
+    body: JSON.stringify(body)
+  }));
 }
 
 async function readResponse(response) {

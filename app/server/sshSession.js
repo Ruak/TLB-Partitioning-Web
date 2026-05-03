@@ -1,5 +1,3 @@
-import fs from "node:fs";
-import path from "node:path";
 import { Client } from "ssh2";
 
 function nowIso() {
@@ -20,7 +18,7 @@ export class SshSession {
       command: null,
       startedAt: null,
       endedAt: null,
-      output: "",
+      output: ""
     };
   }
 
@@ -32,12 +30,12 @@ export class SshSession {
     return {
       status: this.status,
       connected: this.connected,
-      target: this.target ? this.safeTarget(this.target) : null,
-      latestResult: this.latestResult,
+      target: this.target ? this.publicTarget(this.target) : null,
+      latestResult: this.latestResult
     };
   }
 
-  safeTarget(target) {
+  publicTarget(target) {
     return {
       name: target.name,
       host: target.host,
@@ -45,8 +43,7 @@ export class SshSession {
       username: target.username,
       authProfile: target.authProfile,
       workingDirectory: target.workingDirectory,
-      usesPassword: Boolean(target.password),
-      usesPrivateKey: Boolean(target.privateKeyPath),
+      usesPassword: Boolean(target.password)
     };
   }
 
@@ -62,14 +59,14 @@ export class SshSession {
     this.hub.emit("status", this.snapshot());
     this.hub.emit("terminal", {
       stream: "system",
-      text: `[${nowIso()}] ssh ${target.username}@${target.host}:${target.port}\n`,
+      text: `[${nowIso()}] connecting ${target.username}@${target.host}:${target.port}\n`
     });
 
     const client = new Client();
     this.client = client;
 
     client.on("ready", () => {
-      client.shell({ term: "xterm-color", cols: 120, rows: 32 }, (error, stream) => {
+      client.shell({ term: "xterm-color", cols: 120, rows: 36 }, (error, stream) => {
         if (error) {
           this.fail(error);
           return;
@@ -103,34 +100,22 @@ export class SshSession {
 
     client.on("error", (error) => this.fail(error));
     client.on("close", () => {
-      this.status = this.status === "failed" ? "failed" : "closed";
       this.client = null;
       this.shell = null;
+      if (this.status !== "failed") this.status = "closed";
       this.hub.emit("status", this.snapshot());
     });
 
-    client.connect(this.buildConnectOptions(target));
-    return this.snapshot();
-  }
-
-  buildConnectOptions(target) {
-    const options = {
+    client.connect({
       host: target.host,
       port: Number(target.port || 22),
       username: target.username,
+      password: target.password,
       readyTimeout: this.config.ssh.connectTimeoutMs,
-      keepaliveInterval: 15000,
-    };
+      keepaliveInterval: 15000
+    });
 
-    if (target.password) {
-      options.password = target.password;
-    }
-
-    if (target.privateKeyPath) {
-      options.privateKey = fs.readFileSync(path.resolve(target.privateKeyPath));
-    }
-
-    return options;
+    return this.snapshot();
   }
 
   fail(error) {
@@ -158,7 +143,7 @@ export class SshSession {
 
   writeInput(data) {
     if (!this.config.ssh.allowTerminalInput) {
-      throw new Error("Terminal input is disabled by config");
+      throw new Error("Terminal input is disabled");
     }
     if (!this.connected) {
       throw new Error("SSH session is not connected");
@@ -182,7 +167,7 @@ export class SshSession {
       command: fullCommand,
       startedAt: nowIso(),
       endedAt: null,
-      output: "",
+      output: ""
     };
     this.hub.emit("result", this.latestResult);
     this.shell.write(`${fullCommand}\n`);
@@ -206,6 +191,7 @@ export class SshSession {
       this.latestResult.endedAt = nowIso();
       this.hub.emit("result", this.latestResult);
     }
+    return this.latestResult;
   }
 
   shellQuote(value) {

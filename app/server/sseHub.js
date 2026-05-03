@@ -2,7 +2,7 @@ export class SseHub {
   constructor() {
     this.clients = new Set();
     this.history = [];
-    this.maxHistory = 400;
+    this.maxHistory = 300;
   }
 
   add(response) {
@@ -10,7 +10,7 @@ export class SseHub {
       "Content-Type": "text/event-stream; charset=utf-8",
       "Cache-Control": "no-cache, no-transform",
       Connection: "keep-alive",
-      "X-Accel-Buffering": "no",
+      "X-Accel-Buffering": "no"
     });
     response.write("\n");
     this.clients.add(response);
@@ -19,14 +19,11 @@ export class SseHub {
       this.write(response, item.event, item.data);
     }
 
-    response.on("close", () => {
-      this.clients.delete(response);
-    });
+    response.on("close", () => this.clients.delete(response));
   }
 
   emit(event, data) {
-    const item = { event, data, at: Date.now() };
-    this.history.push(item);
+    this.history.push({ event, data });
     if (this.history.length > this.maxHistory) {
       this.history.splice(0, this.history.length - this.maxHistory);
     }

@@ -1,12 +1,12 @@
 {
-  "name": "tlb-partitioning-web",
+  "name": "tlb-partitioning-fpga-console",
   "version": "0.1.0",
   "private": true,
   "type": "module",
   "scripts": {
-    "start": "node server/index.js",
     "dev": "node server/index.js",
-    "check": "node --check server/index.js"
+    "start": "node server/index.js",
+    "check": "node --check server/index.js && node --check server/sshSession.js && node --check public/src/main.js"
   },
   "dependencies": {
     "ssh2": "^1.16.0"

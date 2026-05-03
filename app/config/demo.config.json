@@ -11,18 +11,16 @@
       "username": "root",
       "authProfile": "password",
       "password": "174044",
-      "privateKeyPath": "",
       "workingDirectory": "/root"
     }
   ],
   "ssh": {
     "connectTimeoutMs": 12000,
-    "allowTerminalInput": true,
-    "strictHostKeyChecking": false
+    "allowTerminalInput": true
   },
   "commands": {
-    "buildTestC": "true",
-    "runTestC": "./test_with",
-    "collectResult": "ls -l ./test_with"
+    "runTestWith": "./test_with",
+    "listHome": "ls",
+    "checkBinary": "ls -l ./test_with"
   }
 }

@@ -1,28 +1,30 @@
-# TLB Partitioning Web App
+# FPGA Console
 
-有防护模式的 FPGA SSH 链路
+当前只接入有防护模式的真实 SSH 链路。
 
 ## 启动
 
-```bash
+```powershell
+npm install
 npm run dev
 ```
 
-默认服务地址：
+打开：
 
 ```text
 http://127.0.0.1:5177
 ```
 
-## 配置
+默认目标在 `config/demo.config.json`：
 
-`config/demo.config.json`，按实际 FPGA 地址和命令修改。
+```text
+root@192.168.1.50
+password: 174044
+```
 
-后端使用本机 `ssh` 命令连接 FPGA。建议使用本机 SSH agent 或私钥路径，不在前端保存密码。
+页面支持：
 
-## 当前范围
-
-- FPGA 目标 allowlist
-- SSH connect/disconnect
-- 终端输出 SSE 推送
-- 终端输入转发
+- 连接 / 断开 FPGA SSH
+- 自由输入 SSH 命令
+- 预设运行板上已有的 `./test_with`
+- 清理 SSH ANSI 颜色控制码后显示终端输出

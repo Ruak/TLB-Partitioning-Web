@@ -1,5 +1,5 @@
-import http from "node:http";
 import fs from "node:fs";
+import http from "node:http";
 import path from "node:path";
 import { loadConfig, publicTarget } from "./config.js";
 import { SseHub } from "./sseHub.js";
@@ -9,13 +9,11 @@ const config = loadConfig();
 const hub = new SseHub();
 const sshSession = new SshSession(config, hub);
 
-const contentTypes = {
+const types = {
   ".html": "text/html; charset=utf-8",
   ".css": "text/css; charset=utf-8",
   ".js": "text/javascript; charset=utf-8",
-  ".json": "application/json; charset=utf-8",
-  ".svg": "image/svg+xml",
-  ".png": "image/png",
+  ".json": "application/json; charset=utf-8"
 };
 
 function sendJson(response, status, body) {
@@ -26,38 +24,11 @@ function sendJson(response, status, body) {
 async function readJson(request) {
   const chunks = [];
   for await (const chunk of request) chunks.push(chunk);
-  if (chunks.length === 0) return {};
+  if (!chunks.length) return {};
   return JSON.parse(Buffer.concat(chunks).toString("utf8"));
 }
 
-function serveStatic(request, response) {
-  const url = new URL(request.url, `http://${request.headers.host}`);
-  const pathname = decodeURIComponent(url.pathname);
-  const safePath = pathname === "/" ? "/index.html" : pathname;
-  const filePath = path.resolve(config.publicDir, `.${safePath}`);
-
-  if (!filePath.startsWith(config.publicDir)) {
-    response.writeHead(403);
-    response.end("Forbidden");
-    return;
-  }
-
-  fs.readFile(filePath, (error, data) => {
-    if (error) {
-      response.writeHead(404);
-      response.end("Not found");
-      return;
-    }
-    response.writeHead(200, {
-      "Content-Type": contentTypes[path.extname(filePath)] || "application/octet-stream",
-    });
-    response.end(data);
-  });
-}
-
-async function routeApi(request, response) {
-  const url = new URL(request.url, `http://${request.headers.host}`);
-
+async function routeApi(request, response, url) {
   try {
     if (request.method === "GET" && url.pathname === "/api/health") {
       sendJson(response, 200, { ok: true, session: sshSession.snapshot() });
@@ -67,13 +38,8 @@ async function routeApi(request, response) {
     if (request.method === "GET" && url.pathname === "/api/fpga/targets") {
       sendJson(response, 200, {
         targets: config.fpgaTargets.map(publicTarget),
-        commands: config.commands,
+        commands: config.commands
       });
-      return true;
-    }
-
-    if (request.method === "GET" && url.pathname === "/api/fpga/session") {
-      sendJson(response, 200, sshSession.snapshot());
       return true;
     }
 
@@ -84,8 +50,7 @@ async function routeApi(request, response) {
 
     if (request.method === "POST" && url.pathname === "/api/fpga/ssh/connect") {
       const body = await readJson(request);
-      const targetName = body.targetName || config.fpgaTargets[0].name;
-      sendJson(response, 200, sshSession.connect(targetName));
+      sendJson(response, 200, sshSession.connect(body.targetName || config.fpgaTargets[0].name));
       return true;
     }
 
@@ -102,13 +67,12 @@ async function routeApi(request, response) {
 
     if (request.method === "POST" && url.pathname === "/api/fpga/run/test-partition") {
       const body = await readJson(request);
-      sendJson(response, 200, sshSession.runPreset(body.commandKey || "runTestC"));
+      sendJson(response, 200, sshSession.runPreset(body.commandKey || "runTestWith"));
       return true;
     }
 
     if (request.method === "POST" && url.pathname === "/api/fpga/results/mark-complete") {
-      sshSession.markLatestComplete();
-      sendJson(response, 200, sshSession.latestResult);
+      sendJson(response, 200, sshSession.markLatestComplete());
       return true;
     }
   } catch (error) {
@@ -117,6 +81,26 @@ async function routeApi(request, response) {
   }
 
   return false;
+}
+
+function serveStatic(request, response, url) {
+  const pathname = decodeURIComponent(url.pathname === "/" ? "/index.html" : url.pathname);
+  const filePath = path.resolve(config.publicDir, `.${pathname}`);
+  if (!filePath.startsWith(config.publicDir)) {
+    response.writeHead(403);
+    response.end("Forbidden");
+    return;
+  }
+
+  fs.readFile(filePath, (error, data) => {
+    if (error) {
+      response.writeHead(404);
+      response.end("Not found");
+      return;
+    }
+    response.writeHead(200, { "Content-Type": types[path.extname(filePath)] || "application/octet-stream" });
+    response.end(data);
+  });
 }
 
 const server = http.createServer(async (request, response) => {
@@ -128,14 +112,14 @@ const server = http.createServer(async (request, response) => {
   }
 
   if (url.pathname.startsWith("/api/")) {
-    const handled = await routeApi(request, response);
+    const handled = await routeApi(request, response, url);
     if (!handled) sendJson(response, 404, { ok: false, error: "API not found" });
     return;
   }
 
-  serveStatic(request, response);
+  serveStatic(request, response, url);
 });
 
 server.listen(config.server.port, config.server.host, () => {
-  console.log(`TLB Partitioning app listening on http://${config.server.host}:${config.server.port}`);
+  console.log(`FPGA console listening on http://${config.server.host}:${config.server.port}`);
 });

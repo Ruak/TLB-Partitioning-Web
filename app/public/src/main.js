@@ -3,8 +3,7 @@ import { apiGet, apiPost } from "./api.js";
 const state = {
   targets: [],
   commands: {},
-  terminalText: "",
-  latestResult: null,
+  terminalText: ""
 };
 
 const $ = (selector) => document.querySelector(selector);
@@ -18,25 +17,32 @@ function toast(message) {
   node.dataset.timer = setTimeout(() => node.classList.remove("show"), 1800);
 }
 
+function stripAnsi(value) {
+  return String(value)
+    .replace(/\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~]|\][^\x07]*(?:\x07|\x1B\\))/g, "")
+    .replace(/\r\n/g, "\n")
+    .replace(/\r/g, "\n");
+}
+
 function appendTerminal(text) {
-  state.terminalText += text;
+  state.terminalText += stripAnsi(text);
   if (state.terminalText.length > 60000) {
     state.terminalText = state.terminalText.slice(-60000);
   }
-  $("#terminalOutput").textContent = state.terminalText || "等待终端输出...";
-  $("#terminalOutput").scrollTop = $("#terminalOutput").scrollHeight;
+  const node = $("#terminalOutput");
+  node.textContent = state.terminalText || "等待终端输出...";
+  node.scrollTop = node.scrollHeight;
 }
 
 function setStatus(session) {
   const connected = session.connected;
   $("#sshStatus").textContent = connected ? "SSH 已连接" : `SSH ${session.status || "未连接"}`;
-  $("#sshStatus").className = `status-pill ${connected ? "online" : "offline"}`;
-  $("#sideSshStatus").textContent = connected ? "已连接" : "未连接";
+  $("#sshStatus").className = `pill ${connected ? "online" : "offline"}`;
+  $("#sideStatus").textContent = connected ? "已连接" : "未连接";
 }
 
 function renderTargets() {
-  const select = $("#targetSelect");
-  select.innerHTML = state.targets
+  $("#targetSelect").innerHTML = state.targets
     .map((target) => `<option value="${escapeHtml(target.name)}">${escapeHtml(target.name)}</option>`)
     .join("");
   renderTargetMeta();
@@ -53,38 +59,18 @@ function renderTargetMeta() {
 }
 
 function renderCommands() {
-  $("#cmdBuild").textContent = state.commands.buildTestC || "--";
-  $("#cmdRun").textContent = state.commands.runTestC || "--";
-  $("#cmdCollect").textContent = state.commands.collectResult || "--";
+  $("#cmdRun").textContent = state.commands.runTestWith || "--";
+  $("#cmdList").textContent = state.commands.listHome || "--";
+  $("#cmdCheck").textContent = state.commands.checkBinary || "--";
 }
 
 function renderLatestResult(result) {
-  state.latestResult = result;
   $("#latestCommand").textContent = result?.command || "--";
   $("#latestStatus").textContent = result?.status || "--";
   $("#latestStartedAt").textContent = result?.startedAt || "--";
-  $("#latestOutput").textContent = result?.output || "暂无输出";
+  $("#latestOutput").textContent = result?.output ? stripAnsi(result.output) : "暂无输出";
   $("#resultStatus").textContent = result?.status === "running" ? "结果采集中" : "结果待采集";
-  $("#resultStatus").className = `status-pill ${result?.status === "running" ? "idle" : ""}`;
-}
-
-async function init() {
-  bindEvents();
-  bindEventSource();
-
-  const health = await apiGet("/api/health");
-  $("#backendStatus").textContent = "后端在线";
-  $("#backendStatus").className = "status-pill online";
-  setStatus(health.session);
-  renderLatestResult(health.session.latestResult);
-
-  const targetPayload = await apiGet("/api/fpga/targets");
-  state.targets = targetPayload.targets;
-  state.commands = targetPayload.commands;
-  renderTargets();
-  renderCommands();
-
-  appendTerminal("后端已连接，等待 SSH 会话...\n");
+  $("#resultStatus").className = `pill ${result?.status === "running" ? "idle" : ""}`;
 }
 
 function bindEvents() {
@@ -110,12 +96,12 @@ function bindEvents() {
     toast("断开请求已发送");
   });
 
-  $$(".command-item").forEach((button) => {
-    button.addEventListener("click", () => runCommand(button.dataset.command));
-  });
-
-  $("#runAllBtn").addEventListener("click", async () => {
-    await runCommand("runTestC");
+  $$(".command").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const session = await apiPost("/api/fpga/run/test-partition", { commandKey: button.dataset.command });
+      setStatus(session);
+      renderLatestResult(session.latestResult);
+    });
   });
 
   $("#terminalForm").addEventListener("submit", async (event) => {
@@ -142,9 +128,7 @@ function bindEvents() {
   });
 
   $("#markCompleteBtn").addEventListener("click", async () => {
-    const result = await apiPost("/api/fpga/results/mark-complete");
-    renderLatestResult(result);
-    toast("已标记结果采集完成");
+    renderLatestResult(await apiPost("/api/fpga/results/mark-complete"));
   });
 
   $("#refreshResultBtn").addEventListener("click", async () => {
@@ -152,31 +136,17 @@ function bindEvents() {
   });
 }
 
-async function runCommand(commandKey) {
-  const session = await apiPost("/api/fpga/run/test-partition", { commandKey });
-  setStatus(session);
-  renderLatestResult(session.latestResult);
-}
-
 function bindEventSource() {
   const source = new EventSource("/events/terminal");
-
   source.addEventListener("terminal", (event) => {
     const payload = JSON.parse(event.data);
     appendTerminal(payload.text);
   });
-
-  source.addEventListener("status", (event) => {
-    setStatus(JSON.parse(event.data));
-  });
-
-  source.addEventListener("result", (event) => {
-    renderLatestResult(JSON.parse(event.data));
-  });
-
+  source.addEventListener("status", (event) => setStatus(JSON.parse(event.data)));
+  source.addEventListener("result", (event) => renderLatestResult(JSON.parse(event.data)));
   source.onerror = () => {
     $("#backendStatus").textContent = "事件流重连中";
-    $("#backendStatus").className = "status-pill idle";
+    $("#backendStatus").className = "pill idle";
   };
 }
 
@@ -188,8 +158,26 @@ function escapeHtml(value) {
     .replaceAll('"', "&quot;");
 }
 
+async function init() {
+  bindEvents();
+  bindEventSource();
+
+  const health = await apiGet("/api/health");
+  $("#backendStatus").textContent = "后端在线";
+  $("#backendStatus").className = "pill online";
+  setStatus(health.session);
+  renderLatestResult(health.session.latestResult);
+
+  const payload = await apiGet("/api/fpga/targets");
+  state.targets = payload.targets;
+  state.commands = payload.commands;
+  renderTargets();
+  renderCommands();
+  appendTerminal("后端已连接，等待 SSH 会话...\n");
+}
+
 init().catch((error) => {
   $("#backendStatus").textContent = "后端异常";
-  $("#backendStatus").className = "status-pill offline";
+  $("#backendStatus").className = "pill offline";
   appendTerminal(`[frontend error] ${error.message}\n`);
 });

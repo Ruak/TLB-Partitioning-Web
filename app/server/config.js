@@ -7,32 +7,20 @@ const appRoot = path.resolve(__dirname, "..");
 const configPath = path.join(appRoot, "config", "demo.config.json");
 
 export function loadConfig() {
-  const raw = fs.readFileSync(configPath, "utf8");
-  const config = JSON.parse(raw);
-
-  if (!Array.isArray(config.fpgaTargets) || config.fpgaTargets.length === 0) {
-    throw new Error("config.fpgaTargets must contain at least one target");
-  }
-
+  const config = JSON.parse(fs.readFileSync(configPath, "utf8"));
   return {
     appRoot,
     publicDir: path.join(appRoot, "public"),
-    configPath,
     server: {
       host: config.server?.host || "127.0.0.1",
-      port: Number(config.server?.port || 5177),
+      port: Number(config.server?.port || 5177)
     },
-    fpgaTargets: config.fpgaTargets,
+    fpgaTargets: config.fpgaTargets || [],
     ssh: {
       connectTimeoutMs: Number(config.ssh?.connectTimeoutMs || 12000),
-      allowTerminalInput: config.ssh?.allowTerminalInput !== false,
-      strictHostKeyChecking: config.ssh?.strictHostKeyChecking === true,
+      allowTerminalInput: config.ssh?.allowTerminalInput !== false
     },
-    commands: {
-      buildTestC: String(config.commands?.buildTestC || "gcc test.c -o test_with"),
-      runTestC: String(config.commands?.runTestC || "./test_with"),
-      collectResult: String(config.commands?.collectResult || "true"),
-    },
+    commands: config.commands || {}
   };
 }
 
@@ -44,7 +32,6 @@ export function publicTarget(target) {
     username: target.username,
     authProfile: target.authProfile,
     workingDirectory: target.workingDirectory,
-    usesPrivateKey: Boolean(target.privateKeyPath),
-    usesPassword: Boolean(target.password),
+    usesPassword: Boolean(target.password)
   };
 }
