@@ -5,7 +5,20 @@
   },
   "fpgaTargets": [
     {
-      "name": "local-fpga-board",
+      "name": "cache-protection-board",
+      "label": "Cache 防护板",
+      "protection": "cache",
+      "host": "192.168.1.100",
+      "port": 22,
+      "username": "root",
+      "authProfile": "password",
+      "password": "174044",
+      "workingDirectory": "/root"
+    },
+    {
+      "name": "tlb-protection-board",
+      "label": "TLB 防护板",
+      "protection": "tlb",
       "host": "192.168.1.50",
       "port": 22,
       "username": "root",
@@ -19,9 +32,25 @@
     "allowTerminalInput": true
   },
   "commands": {
-    "runTestWith": "./test_with",
+    "runProtectionTest": "./test_with",
+    "runPerfCoremark": "./coremark.exe",
+    "runPerfProc": "./ctxswitch_proc -n 100 -w 50 -s; ./ctxswitch_proc -n 1000 -w 500 -s; ./ctxswitch_proc -s",
+    "runPerfThread": "./ctxswitch_thread -s -n 100 -w 50; ./ctxswitch_thread -s -n 1000 -w 500; ./ctxswitch_thread -s",
+    "runPerfConcurrent": "./hackbench_like -l 10 -p -s; ./hackbench_like -l 100 -p -s; ./hackbench_like -l 1000 -p -s; ./hackbench_like -l 10000 -p -s",
+    "runPerformanceTest": "./coremark.exe; ./ctxswitch_proc -n 100 -w 50 -s; ./ctxswitch_proc -n 1000 -w 500 -s; ./ctxswitch_proc -s; ./ctxswitch_thread -s -n 100 -w 50; ./ctxswitch_thread -s -n 1000 -w 500; ./ctxswitch_thread -s; ./hackbench_like -l 10 -p -s; ./hackbench_like -l 100 -p -s; ./hackbench_like -l 1000 -p -s; ./hackbench_like -l 10000 -p -s",
     "runTestNo": "./test_no",
     "listHome": "ls",
-    "checkBinary": "ls -l ./test_with ./test_no"
+    "checkBinary": "ls -l ./test_with ./coremark.exe ./ctxswitch_proc ./ctxswitch_thread ./hackbench_like ./test_no"
+  },
+  "unprotected": {
+    "distro": "Ubuntu",
+    "defaultCore": "0",
+    "defaultKey": "00112233445566778899aabbccddeeff",
+    "defaultSamples": 200000,
+    "defaultCacheSets": 64,
+    "defaultLineShift": 6,
+    "defaultCacheLevel": 1,
+    "appPort": 8899,
+    "buildOnStart": true
   }
 }

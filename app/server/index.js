@@ -4,10 +4,12 @@ import path from "node:path";
 import { loadConfig, publicTarget } from "./config.js";
 import { SseHub } from "./sseHub.js";
 import { SshSession } from "./sshSession.js";
+import { UnprotectedSession } from "./unprotectedSession.js";
 
 const config = loadConfig();
 const hub = new SseHub();
 const sshSession = new SshSession(config, hub);
+const unprotectedSession = new UnprotectedSession(config, hub);
 
 const types = {
   ".html": "text/html; charset=utf-8",
@@ -31,14 +33,61 @@ async function readJson(request) {
 async function routeApi(request, response, url) {
   try {
     if (request.method === "GET" && url.pathname === "/api/health") {
-      sendJson(response, 200, { ok: true, session: sshSession.snapshot() });
+      sendJson(response, 200, {
+        ok: true,
+        session: sshSession.snapshot(),
+        unprotected: unprotectedSession.snapshot()
+      });
+      return true;
+    }
+
+    if (request.method === "GET" && url.pathname === "/api/unprotected/session") {
+      sendJson(response, 200, unprotectedSession.snapshot());
+      return true;
+    }
+
+    if (request.method === "POST" && url.pathname === "/api/unprotected/start") {
+      const body = await readJson(request);
+      sendJson(response, 200, await unprotectedSession.start(body));
+      return true;
+    }
+
+    if (request.method === "POST" && url.pathname === "/api/unprotected/send") {
+      const body = await readJson(request);
+      sendJson(response, 200, await unprotectedSession.sendMessage(body.message));
+      return true;
+    }
+
+    if (request.method === "POST" && url.pathname === "/api/unprotected/recover-key") {
+      const body = await readJson(request);
+      sendJson(response, 200, unprotectedSession.recoverKey(body));
+      return true;
+    }
+
+    if (request.method === "POST" && url.pathname === "/api/unprotected/demo-recover-key") {
+      sendJson(response, 200, unprotectedSession.demoRecoverKey());
+      return true;
+    }
+
+    if (request.method === "POST" && url.pathname === "/api/unprotected/enable-eve") {
+      sendJson(response, 200, unprotectedSession.enableEve());
+      return true;
+    }
+
+    if (request.method === "POST" && url.pathname === "/api/unprotected/eavesdrop") {
+      sendJson(response, 200, unprotectedSession.eavesdrop());
+      return true;
+    }
+
+    if (request.method === "POST" && url.pathname === "/api/unprotected/stop") {
+      sendJson(response, 200, unprotectedSession.stop());
       return true;
     }
 
     if (request.method === "GET" && url.pathname === "/api/fpga/targets") {
       sendJson(response, 200, {
         targets: config.fpgaTargets.map(publicTarget),
-        commands: config.commands
+        commands: {}
       });
       return true;
     }
@@ -75,12 +124,18 @@ async function routeApi(request, response, url) {
 
     if (request.method === "POST" && url.pathname === "/api/fpga/run/test-partition") {
       const body = await readJson(request);
-      sendJson(response, 200, sshSession.runPreset(body.commandKey || "runTestWith"));
+      sendJson(response, 200, sshSession.runPreset(body.commandKey || "runProtectionTest"));
       return true;
     }
 
     if (request.method === "POST" && url.pathname === "/api/fpga/results/mark-complete") {
       sendJson(response, 200, sshSession.markLatestComplete());
+      return true;
+    }
+
+    if (request.method === "POST" && url.pathname === "/api/fpga/results/start-collection") {
+      const body = await readJson(request);
+      sendJson(response, 200, sshSession.startCollection(body.commandKey || "runProtectionTest", body.label));
       return true;
     }
   } catch (error) {

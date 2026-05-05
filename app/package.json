@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "node server/index.js",
     "start": "node server/index.js",
-    "check": "node --check server/index.js && node --check server/sshSession.js && node --check public/src/main.js"
+    "check": "node --check server/index.js && node --check server/sshSession.js && node --check server/unprotectedSession.js && node --check public/src/main.js"
   },
   "dependencies": {
     "ssh2": "^1.16.0"

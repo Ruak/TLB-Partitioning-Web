@@ -4,15 +4,24 @@ function nowIso() {
   return new Date().toISOString();
 }
 
-function emptyResult(commandKey = null) {
+function emptyResult(commandKey = null, target = null) {
+  const key = target && commandKey ? resultKey(target, commandKey) : null;
   return {
     status: "idle",
     commandKey,
+    resultKey: key,
+    targetName: target?.name || null,
+    targetLabel: target?.label || target?.name || null,
+    protection: target?.protection || null,
     command: null,
     startedAt: null,
     endedAt: null,
     output: ""
   };
+}
+
+function resultKey(target, commandKey) {
+  return `${target?.protection || target?.name || "unknown"}:${commandKey}`;
 }
 
 export class SshSession {
@@ -25,10 +34,12 @@ export class SshSession {
     this.status = "idle";
     this.activeResultKey = null;
     this.latestResult = emptyResult();
-    this.resultsByCommand = {
-      runTestWith: emptyResult("runTestWith"),
-      runTestNo: emptyResult("runTestNo")
-    };
+    this.resultsByCommand = {};
+    for (const target of this.config.fpgaTargets) {
+      for (const commandKey of this.resultCommandKeys()) {
+        this.resultsByCommand[resultKey(target, commandKey)] = emptyResult(commandKey, target);
+      }
+    }
   }
 
   get connected() {
@@ -48,6 +59,8 @@ export class SshSession {
   publicTarget(target) {
     return {
       name: target.name,
+      label: target.label || target.name,
+      protection: target.protection || target.name,
       host: target.host,
       port: target.port,
       username: target.username,
@@ -58,10 +71,9 @@ export class SshSession {
   }
 
   connect(targetName) {
-    if (this.connected) return this.snapshot();
-
     const target = this.config.fpgaTargets.find((item) => item.name === targetName);
     if (!target) throw new Error(`Unknown FPGA target: ${targetName}`);
+    if (this.connected && this.target?.name === target.name) return this.snapshot();
 
     this.disconnect(false);
     this.target = target;
@@ -178,20 +190,51 @@ export class SshSession {
     }
 
     this.closeActiveResult();
+    const key = resultKey(this.target, commandKey);
     const result = {
       status: "running",
       commandKey,
+      resultKey: key,
+      targetName: this.target?.name || null,
+      targetLabel: this.target?.label || this.target?.name || null,
+      protection: this.target?.protection || null,
       command: fullCommand,
       startedAt: nowIso(),
       endedAt: null,
       output: ""
     };
-    this.activeResultKey = commandKey;
+    this.activeResultKey = key;
     this.latestResult = result;
-    this.resultsByCommand[commandKey] = result;
+    this.resultsByCommand[key] = result;
     this.emitResult(result);
     this.shell.write(`${fullCommand}\n`);
     this.hub.emit("terminal", { stream: "stdin", text: `$ ${fullCommand}\n` });
+    return this.snapshot();
+  }
+
+  startCollection(commandKey, label = null) {
+    if (!this.connected) throw new Error("SSH session is not connected");
+    if (!this.isResultCommand(commandKey)) throw new Error(`Unknown result collection type: ${commandKey}`);
+
+    this.closeActiveResult();
+    const key = resultKey(this.target, commandKey);
+    const result = {
+      status: "running",
+      commandKey,
+      resultKey: key,
+      targetName: this.target?.name || null,
+      targetLabel: this.target?.label || this.target?.name || null,
+      protection: this.target?.protection || null,
+      command: `手动采集：${label || commandKey}`,
+      startedAt: nowIso(),
+      endedAt: null,
+      output: ""
+    };
+    this.activeResultKey = key;
+    this.latestResult = result;
+    this.resultsByCommand[key] = result;
+    this.emitResult(result);
+    this.hub.emit("terminal", { stream: "system", text: `[collect] start ${result.command}\n` });
     return this.snapshot();
   }
 
@@ -238,7 +281,20 @@ export class SshSession {
   }
 
   isResultCommand(commandKey) {
-    return commandKey === "runTestWith" || commandKey === "runTestNo";
+    return this.resultCommandKeys().includes(commandKey);
+  }
+
+  resultCommandKeys() {
+    return [
+      "runProtectionTest",
+      "runPerformanceTest",
+      "runPerfCoremark",
+      "runPerfProc",
+      "runPerfThread",
+      "runPerfConcurrent",
+      "runTestWith",
+      "runTestNo"
+    ];
   }
 
   shellQuote(value) {
