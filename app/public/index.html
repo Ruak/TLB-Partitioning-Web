@@ -22,29 +22,29 @@
             <span class="nav-icon">⌂</span>
             <span>概览</span>
           </button>
+          <button class="nav-item" data-view="connections">
+            <span class="nav-icon">↔</span>
+            <span>连接</span>
+          </button>
           <button class="nav-item" data-view="unprotected">
             <span class="nav-icon">!</span>
-            <span>无防护模式</span>
+            <span>无防护 POC</span>
           </button>
           <button class="nav-item" data-view="protected">
-            <span class="nav-icon">◆</span>
-            <span>有防护模式</span>
+            <span class="nav-icon">$</span>
+            <span>有防护 SSH</span>
           </button>
           <button class="nav-item" data-view="compare">
-            <span class="nav-icon">≡</span>
-            <span>结果对比</span>
-          </button>
-          <button class="nav-item" data-view="records">
-            <span class="nav-icon">▣</span>
-            <span>实验记录</span>
+            <span class="nav-icon">≋</span>
+            <span>性能结果对比</span>
           </button>
         </nav>
 
         <div class="sidebar-footer">
-          <span class="mini-label">演示配置</span>
+          <span class="mini-label">演示状态</span>
           <div class="config-line"><span>后端</span><strong id="backendMini">检查中</strong></div>
-          <div class="config-line"><span>脚本</span><strong id="scriptStateMini">待机</strong></div>
-          <div class="config-line"><span>FPGA</span><strong id="sideStatus">未连接</strong></div>
+          <div class="config-line"><span>当前连接</span><strong id="sideStatus">未连接</strong></div>
+          <div class="config-line"><span>POC</span><strong id="scriptStateMini">待机</strong></div>
         </div>
       </aside>
 
@@ -56,40 +56,36 @@
           </div>
           <div class="status-strip" aria-label="系统状态">
             <span class="status-pill idle" id="backendStatus"><i></i> 后端检查中</span>
-            <span class="status-pill idle" id="unprotectedStatus"><i></i> 本机脚本待机</span>
-            <span class="status-pill offline" id="sshStatus"><i></i> SSH 未连接</span>
+            <span class="status-pill offline" id="sshStatus"><i></i> 远程未连接</span>
+            <span class="status-pill idle" id="unprotectedStatus"><i></i> POC 待机</span>
             <span class="status-pill idle" id="resultStatus"><i></i> 结果待采集</span>
           </div>
         </header>
 
         <section class="view active" id="overview">
-          <div class="overview-grid">
-            <section class="panel intro-panel">
-              <div class="panel-head">
-                <div>
-                  <span class="eyebrow">VexRiscv + TLB Partitioning</span>
-                  <h2>安全演示平台</h2>
-                </div>
-                <span class="badge good">演示链路</span>
-              </div>
-              <p class="lead">
-                平台把本机无防护攻击脚本、FPGA 实机防护输出和实验留痕放到同一个控制台中，展示侧信道攻击在无防护环境下恢复通信密钥，以及 Cache/TLB 防护开启后的功能与性能测试结果。
+          <section class="hero-panel">
+            <div class="hero-copy">
+              <span class="eyebrow">NEXYS-A7 + VexRiscv + Linux</span>
+              <h2>Cache / TLB 分区防护演示平台</h2>
+              <p>
+                平台用于复现无防护状态下的侧信道攻击链路，并在 FPGA 运行环境中采集有防护状态下的功能和性能结果。
               </p>
-              <div class="architecture" aria-label="演示架构">
-                <div class="arch-node user">Alice / Bob<br /><small>单核加密通信</small></div>
-                <div class="arch-link"></div>
-                <div class="arch-node attacker">Mallory / Eve<br /><small>Prime+Probe 与窃听</small></div>
-                <div class="arch-link protect"></div>
-                <div class="arch-node user">App<br /><small>AES 通信服务</small></div>
-                <div class="arch-node fpga">FPGA 防护板<br /><small>Cache 与 TLB 双目标</small></div>
-                <div class="arch-node console">Web 控制台<br /><small>SSH 采集、绘图、留痕</small></div>
+              <div class="hero-actions">
+                <button class="btn primary" data-jump="connections">连接目标</button>
+                <button class="btn ghost" data-jump="protected">进入采集</button>
               </div>
-            </section>
+            </div>
+            <figure class="board-figure">
+              <img src="./assets/nexys-a7.jpg" alt="NEXYS-A7 FPGA 开发板" />
+              <figcaption>Digilent NEXYS-A7 FPGA 开发板</figcaption>
+            </figure>
+          </section>
 
-            <section class="panel board-panel">
+          <div class="overview-grid">
+            <section class="panel">
               <div class="panel-head">
                 <div>
-                  <span class="eyebrow">演示状态</span>
+                  <span class="eyebrow">运行状态</span>
                   <h2>当前环境</h2>
                 </div>
               </div>
@@ -97,42 +93,116 @@
                 <article class="stat-card secure">
                   <span>后端桥接</span>
                   <strong id="overviewBackend">检查中</strong>
-                  <small>Node.js 负责本机脚本、SSH 和 SSE 事件转发。</small>
-                </article>
-                <article class="stat-card">
-                  <span>本机脚本</span>
-                  <strong id="overviewScript">待机</strong>
-                  <small>无防护模式通过 WSL Ubuntu 启动 app / Bob / Mallory / Eve。</small>
+                  <small>Node.js 负责本地 WSL POC、远程 SSH 和 SSE 事件转发。</small>
                 </article>
                 <article class="stat-card warn">
-                  <span>FPGA 连接</span>
-                  <strong id="overviewFpga">未连接</strong>
-                  <small>有防护模式可在 Cache 防护板和 TLB 防护板之间切换。</small>
+                  <span>当前连接</span>
+                  <strong id="overviewActiveTarget">未连接</strong>
+                  <small>系统同一时间只保持一个远程会话，切换目标时自动断开旧连接。</small>
+                </article>
+                <article class="stat-card">
+                  <span>本地无防护 POC</span>
+                  <strong id="overviewScript">待机</strong>
+                  <small>在本机 WSL Ubuntu 中启动 app / Bob / Mallory / Eve。</small>
                 </article>
                 <article class="stat-card danger">
                   <span>最近采集</span>
                   <strong id="overviewLastRun">暂无</strong>
-                  <small>性能图仅使用开启防护后的板上测试程序输出。</small>
+                  <small>有防护采集结果会同步进入终端、原始记录和图表区。</small>
                 </article>
               </div>
-              <div class="metric-row">
-                <div><span>Cache 防护板</span><strong id="overviewCacheTarget">192.168.1.100</strong></div>
-                <div><span>TLB 防护板</span><strong id="overviewTlbTarget">192.168.1.50</strong></div>
-                <div><span>性能采集程序</span><strong id="overviewPerfCommand">coremark / ctxswitch / hackbench</strong></div>
+            </section>
+
+            <section class="panel">
+              <div class="panel-head">
+                <div>
+                  <span class="eyebrow">目标说明</span>
+                  <h2>Cache 与 TLB</h2>
+                </div>
+              </div>
+              <div class="target-summary">
+                <article>
+                  <span>Cache</span>
+                  <strong id="overviewCacheTarget">远程 WSL</strong>
+                  <p>连接另一台电脑上的 WSL 环境，用于 Cache 防护测试与性能采集。</p>
+                </article>
+                <article>
+                  <span>TLB</span>
+                  <strong id="overviewTlbTarget">FPGA SSH</strong>
+                  <p>保持当前连接方式，直接通过 SSH 连接运行 Linux 的 NEXYS-A7 开发板。</p>
+                </article>
               </div>
             </section>
           </div>
+        </section>
+
+        <section class="view" id="connections">
+          <section class="panel connection-panel">
+            <div class="panel-head">
+              <div>
+                <span class="eyebrow">单活远程连接</span>
+                <h2>连接目标</h2>
+                <p class="panel-note">此页面只负责连接与断开，不显示 SSH 终端。同一时间只允许一个目标保持连接。</p>
+              </div>
+              <span class="badge muted" id="sshBadge">未连接</span>
+            </div>
+
+            <div class="connection-toolbar">
+              <label>
+                目标
+                <select id="targetSelect"></select>
+              </label>
+              <div class="button-row">
+                <button class="btn primary" id="connectBtn">连接选中目标</button>
+                <button class="btn ghost" id="disconnectBtn">断开当前连接</button>
+              </div>
+            </div>
+
+            <div class="connection-grid">
+              <article class="connection-card" id="cacheConnectionCard">
+                <div class="result-head">
+                  <div>
+                    <span class="eyebrow">Cache</span>
+                    <h3>远程 WSL 连接</h3>
+                  </div>
+                  <span class="badge idle" id="cacheConnectionState">未连接</span>
+                </div>
+                <dl class="meta-list">
+                  <div><dt>Host</dt><dd id="cacheHost">--</dd></div>
+                  <div><dt>Port</dt><dd id="cachePort">--</dd></div>
+                  <div><dt>User</dt><dd id="cacheUser">--</dd></div>
+                  <div><dt>Workdir</dt><dd id="cacheWorkdir">--</dd></div>
+                </dl>
+              </article>
+
+              <article class="connection-card" id="tlbConnectionCard">
+                <div class="result-head">
+                  <div>
+                    <span class="eyebrow">TLB</span>
+                    <h3>FPGA SSH 连接</h3>
+                  </div>
+                  <span class="badge idle" id="tlbConnectionState">未连接</span>
+                </div>
+                <dl class="meta-list">
+                  <div><dt>Host</dt><dd id="tlbHost">--</dd></div>
+                  <div><dt>Port</dt><dd id="tlbPort">--</dd></div>
+                  <div><dt>User</dt><dd id="tlbUser">--</dd></div>
+                  <div><dt>Workdir</dt><dd id="tlbWorkdir">--</dd></div>
+                </dl>
+              </article>
+            </div>
+          </section>
         </section>
 
         <section class="view" id="unprotected">
           <section class="panel control-panel">
             <div class="panel-head">
               <div>
-                <span class="eyebrow">本机 WSL 实验</span>
-                <h2>无防护攻击链控制台</h2>
+                <span class="eyebrow">本地 WSL 实验</span>
+                <h2>无防护 POC 控制台</h2>
               </div>
               <div class="button-row">
-                <button class="btn primary" id="startUnprotectedBtn">启动实验</button>
+                <button class="btn primary" id="startUnprotectedBtn">启动 POC</button>
                 <button class="btn danger-soft" id="recoverKeyBtn">恢复密钥</button>
                 <button class="btn ghost" id="demoRecoverKeyBtn">快速演示恢复</button>
                 <button class="btn ghost" id="eavesdropBtn">窃听</button>
@@ -140,8 +210,9 @@
                 <button class="btn ghost" id="clearUnprotectedBtn">清空输出</button>
               </div>
             </div>
+
             <div class="unprotected-form">
-              <label>
+              <label class="wide">
                 AES Key
                 <input id="unprotectedKey" value="00112233445566778899aabbccddeeff" spellcheck="false" />
               </label>
@@ -162,12 +233,6 @@
                 <input id="malloryLineShift" value="6" inputmode="numeric" />
               </label>
               <label>
-                Cache Level
-                <select id="malloryCacheLevel">
-                  <option value="1">L1</option>
-                </select>
-              </label>
-              <label>
                 Start Byte
                 <input id="malloryStart" value="0" inputmode="numeric" />
               </label>
@@ -175,28 +240,24 @@
                 Byte Count
                 <input id="malloryCount" value="1" inputmode="numeric" />
               </label>
-              <form class="message-form" id="aliceMessageForm">
-                <input id="aliceMessageInput" autocomplete="off" placeholder="Alice 消息，长文本会自动分块发送" />
-                <button class="btn primary" type="submit">发送</button>
-              </form>
+              <label>
+                Cache Level
+                <select id="malloryCacheLevel">
+                  <option value="1">L1</option>
+                </select>
+              </label>
             </div>
+
+            <form class="message-form" id="aliceMessageForm">
+              <input id="aliceMessageInput" autocomplete="off" placeholder="Alice 消息，长文本会自动分块发送" />
+              <button class="btn primary" type="submit">发送</button>
+            </form>
+
             <div class="evidence-strip">
-              <div>
-                <span>恢复密钥</span>
-                <strong id="recoveredKey">--</strong>
-              </div>
-              <div>
-                <span>Eve 状态</span>
-                <strong id="eveState">未启用</strong>
-              </div>
-              <div>
-                <span>阶段</span>
-                <strong id="attackPhase">待机</strong>
-              </div>
-              <div>
-                <span>窃听结果</span>
-                <strong id="eavesdropPreview">--</strong>
-              </div>
+              <div><span>恢复密钥</span><strong id="recoveredKey">--</strong></div>
+              <div><span>Eve 状态</span><strong id="eveState">未启用</strong></div>
+              <div><span>阶段</span><strong id="attackPhase">待机</strong></div>
+              <div><span>窃听结果</span><strong id="eavesdropPreview">--</strong></div>
             </div>
           </section>
 
@@ -245,199 +306,124 @@
 
         <section class="view" id="protected">
           <div class="protected-layout">
-            <section class="panel ssh-panel">
+            <section class="panel collection-panel">
               <div class="panel-head">
                 <div>
-                  <span class="eyebrow">SSH 目标</span>
-                  <h2>FPGA 连接</h2>
+                  <span class="eyebrow">有防护实验</span>
+                  <h2>数据采集</h2>
+                  <p class="panel-note" id="activeTargetNote">请先在连接页连接一个目标。</p>
                 </div>
-                <span class="badge muted" id="sshBadge">未连接</span>
+                <button class="btn ghost" data-jump="connections">连接页</button>
               </div>
-              <form class="ssh-form">
-                <label>
-                  Target
-                  <select id="targetSelect"></select>
-                </label>
-                <label>
-                  Protection
-                  <input id="targetProtection" disabled value="--" />
-                </label>
-                <label>
-                  Host
-                  <input id="targetHost" disabled value="--" />
-                </label>
-                <label>
-                  Port
-                  <input id="targetPort" disabled value="--" />
-                </label>
-                <label>
-                  Username
-                  <input id="targetUser" disabled value="--" />
-                </label>
-                <label>
-                  Workdir
-                  <input id="targetWorkdir" disabled value="--" />
-                </label>
-              </form>
-              <div class="button-row full">
-                <button class="btn primary" id="connectBtn">连接 FPGA</button>
-                <button class="btn ghost" id="disconnectBtn">断开</button>
+
+              <div class="metric-row two">
+                <div><span>当前目标</span><strong id="protectedActiveTarget">未连接</strong></div>
+                <div><span>连接方式</span><strong id="protectedConnectionKind">--</strong></div>
               </div>
-              <div class="collection-box">
-                <div class="section-divider"></div>
-                <div class="panel-head compact">
-                  <div>
-                    <span class="eyebrow">采集记录</span>
-                    <h3>输出归档类型</h3>
-                  </div>
-                </div>
-                <label>
-                  采集类型
-                  <select id="collectionTypeSelect">
-                    <option value="runProtectionTest">防护功能测试</option>
-                    <option value="runPerfCoremark">有防护基础性能测试</option>
-                    <option value="runPerfProc">有防护进程压力测试</option>
-                    <option value="runPerfThread">有防护线程压力测试</option>
-                    <option value="runPerfConcurrent">有防护并发压力测试</option>
-                  </select>
-                </label>
-                <button class="btn primary" id="collectToggleBtn">开始采集</button>
+
+              <div class="collection-actions">
+                <button class="btn primary" id="runProtectionBtn">一键采集防护功能测试</button>
+                <button class="btn primary" id="runPerformanceBtn">一键采集完整性能测试</button>
+                <button class="btn ghost" id="markCompleteBtn">结束当前采集</button>
+              </div>
+
+              <div class="artifact-list">
+                <article><span>采集命令</span><strong id="latestCommand">--</strong></article>
+                <article><span>开始时间</span><strong id="latestStartedAt">--</strong></article>
+                <article><span>结束时间</span><strong id="latestEndedAt">--</strong></article>
               </div>
             </section>
 
             <section class="panel terminal-panel">
               <div class="panel-head">
                 <div>
-                  <span class="eyebrow">WebSocket SSH</span>
-                  <h2>内嵌终端</h2>
+                  <span class="eyebrow">SSH 终端</span>
+                  <h2>远程输出</h2>
                 </div>
                 <div class="button-row">
                   <button class="icon-btn" id="copyBtn" title="复制输出">⧉</button>
                   <button class="icon-btn" id="clearBtn" title="清屏">⌫</button>
                 </div>
               </div>
-              <pre class="terminal" id="terminalOutput">fpga@bridge:~$ 等待连接...</pre>
+              <pre class="terminal" id="terminalOutput">等待远程连接...</pre>
               <form class="terminal-input" id="terminalForm">
-                <input id="terminalInput" autocomplete="off" placeholder="手动输入命令，例如 ./coremark.exe 或 ./ctxswitch_proc -n 100 -w 50 -s" />
+                <input id="terminalInput" autocomplete="off" placeholder="手动输入命令，例如 ./coremark.exe" />
                 <button class="btn primary" type="submit">发送</button>
               </form>
             </section>
           </div>
+
+          <section class="panel">
+            <div class="panel-head">
+              <div>
+                <span class="eyebrow">原始记录</span>
+                <h2>最近采集输出</h2>
+              </div>
+              <button class="btn ghost" id="refreshResultBtn">刷新</button>
+            </div>
+            <pre class="record-log" id="latestOutput">暂无输出</pre>
+          </section>
         </section>
 
         <section class="view" id="compare">
           <section class="panel">
             <div class="panel-head">
               <div>
-                <span class="eyebrow">防护开启后</span>
-                <h2>处理器性能评分与吞吐量</h2>
-                <p class="panel-note">曲线只使用开启防护后的板上输出：基础测试解析 `Iterations/Sec`，进程/线程/并发压力测试解析 `per_switch=... ns` 并换算为 switches/sec。</p>
+                <span class="eyebrow">报告第 3.4 节</span>
+                <h2>性能测试结果</h2>
+                <p class="panel-note">暂按《报告.docx》测试部分中的数据绘制，后续可替换为实时采集结果。</p>
               </div>
-              <button class="btn ghost" id="refreshCompareBtn">刷新</button>
             </div>
-            <div class="chart-grid">
+            <div class="chart-grid report-charts">
+              <article class="chart-card wide-chart">
+                <div class="result-head">
+                  <div>
+                    <span class="eyebrow">Cache</span>
+                    <h3>Hit / Miss 访问周期</h3>
+                  </div>
+                  <span class="badge good">零额外延迟</span>
+                </div>
+                <svg class="bar-chart" id="cacheLatencyChart" viewBox="0 0 760 320" role="img" aria-label="Cache Hit Miss 访问周期"></svg>
+              </article>
               <article class="chart-card">
                 <div class="result-head">
                   <div>
                     <span class="eyebrow">CoreMark</span>
-                    <h3>处理器性能评分</h3>
+                    <h3>基础算力</h3>
                   </div>
-                  <span class="badge muted" id="scorePointCount">暂无数据</span>
+                  <span class="badge good">153 / 153</span>
                 </div>
-                <svg class="line-chart" id="scoreChart" viewBox="0 0 640 260" role="img" aria-label="处理器性能评分曲线"></svg>
+                <svg class="bar-chart" id="coremarkChart" viewBox="0 0 520 300" role="img" aria-label="CoreMark 基准测试"></svg>
               </article>
               <article class="chart-card">
                 <div class="result-head">
                   <div>
-                    <span class="eyebrow">Switches / Sec</span>
-                    <h3>压力测试吞吐量</h3>
+                    <span class="eyebrow">Process</span>
+                    <h3>进程上下文切换</h3>
                   </div>
-                  <span class="badge muted" id="throughputPointCount">暂无数据</span>
+                  <span class="badge idle">8.33% - 14.5%</span>
                 </div>
-                <svg class="line-chart" id="throughputChart" viewBox="0 0 640 260" role="img" aria-label="吞吐量曲线"></svg>
+                <svg class="bar-chart" id="processSwitchChart" viewBox="0 0 520 300" role="img" aria-label="进程上下文切换压力测试"></svg>
               </article>
-            </div>
-            <div class="metric-summary">
-              <article><span>基础性能 Iterations/Sec</span><strong id="cacheScoreLatest">--</strong></article>
-              <article><span>进程压力 switches/sec</span><strong id="cacheThroughputLatest">--</strong></article>
-              <article><span>线程压力 switches/sec</span><strong id="tlbScoreLatest">--</strong></article>
-              <article><span>并发压力 switches/sec</span><strong id="tlbThroughputLatest">--</strong></article>
-            </div>
-          </section>
-        </section>
-
-        <section class="view" id="records">
-          <section class="panel">
-            <div class="panel-head">
-              <div>
-                <span class="eyebrow">实验留痕</span>
-                <h2>本次演示记录</h2>
-              </div>
-              <button class="btn ghost" id="refreshResultBtn">刷新</button>
-            </div>
-            <div class="record-layout">
-              <article class="result-card">
+              <article class="chart-card">
                 <div class="result-head">
                   <div>
-                    <span class="eyebrow">Cache</span>
-                    <h3>功能测试输出</h3>
+                    <span class="eyebrow">Thread</span>
+                    <h3>线程上下文切换</h3>
                   </div>
-                  <span class="badge idle" id="cacheProtectionStatus">待采集</span>
+                  <span class="badge muted">无显著稳定提升</span>
                 </div>
-                <div class="artifact-list compact">
-                  <article><span>命令</span><strong id="cacheProtectionCommand">--</strong></article>
-                  <article><span>开始时间</span><strong id="cacheProtectionStartedAt">--</strong></article>
-                  <article><span>结束时间</span><strong id="cacheProtectionEndedAt">--</strong></article>
-                </div>
-                <pre class="record-log" id="cacheProtectionOutput">暂无输出</pre>
+                <svg class="bar-chart" id="threadSwitchChart" viewBox="0 0 520 300" role="img" aria-label="线程上下文切换压力测试"></svg>
               </article>
-
-              <article class="result-card">
+              <article class="chart-card">
                 <div class="result-head">
                   <div>
-                    <span class="eyebrow">Cache</span>
-                    <h3>性能测试输出</h3>
+                    <span class="eyebrow">Hackbench</span>
+                    <h3>并发调度压力</h3>
                   </div>
-                  <span class="badge idle" id="cachePerformanceStatus">待采集</span>
+                  <span class="badge idle">约 4.8% - 11%</span>
                 </div>
-                <div class="artifact-list compact">
-                  <article><span>命令</span><strong id="cachePerformanceCommand">--</strong></article>
-                  <article><span>开始时间</span><strong id="cachePerformanceStartedAt">--</strong></article>
-                  <article><span>结束时间</span><strong id="cachePerformanceEndedAt">--</strong></article>
-                </div>
-                <pre class="record-log" id="cachePerformanceOutput">暂无输出</pre>
-              </article>
-
-              <article class="result-card">
-                <div class="result-head">
-                  <div>
-                    <span class="eyebrow">TLB</span>
-                    <h3>功能测试输出</h3>
-                  </div>
-                  <span class="badge idle" id="tlbProtectionStatus">待采集</span>
-                </div>
-                <div class="artifact-list compact">
-                  <article><span>命令</span><strong id="tlbProtectionCommand">--</strong></article>
-                  <article><span>开始时间</span><strong id="tlbProtectionStartedAt">--</strong></article>
-                  <article><span>结束时间</span><strong id="tlbProtectionEndedAt">--</strong></article>
-                </div>
-                <pre class="record-log" id="tlbProtectionOutput">暂无输出</pre>
-              </article>
-
-              <article class="result-card">
-                <div class="result-head">
-                  <div>
-                    <span class="eyebrow">TLB</span>
-                    <h3>性能测试输出</h3>
-                  </div>
-                  <span class="badge idle" id="tlbPerformanceStatus">待采集</span>
-                </div>
-                <div class="artifact-list compact">
-                  <article><span>命令</span><strong id="tlbPerformanceCommand">--</strong></article>
-                  <article><span>开始时间</span><strong id="tlbPerformanceStartedAt">--</strong></article>
-                  <article><span>结束时间</span><strong id="tlbPerformanceEndedAt">--</strong></article>
-                </div>
-                <pre class="record-log" id="tlbPerformanceOutput">暂无输出</pre>
+                <svg class="bar-chart" id="hackbenchChart" viewBox="0 0 520 300" role="img" aria-label="Hackbench 并发调度压力测试"></svg>
               </article>
             </div>
           </section>

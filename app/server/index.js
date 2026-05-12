@@ -128,6 +128,12 @@ async function routeApi(request, response, url) {
       return true;
     }
 
+    if (request.method === "POST" && url.pathname === "/api/fpga/run/preset") {
+      const body = await readJson(request);
+      sendJson(response, 200, sshSession.runPreset(body.commandKey || "runProtectionTest"));
+      return true;
+    }
+
     if (request.method === "POST" && url.pathname === "/api/fpga/results/mark-complete") {
       sendJson(response, 200, sshSession.markLatestComplete());
       return true;

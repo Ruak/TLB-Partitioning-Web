@@ -5,8 +5,9 @@
   },
   "fpgaTargets": [
     {
-      "name": "cache-protection-board",
-      "label": "Cache 防护板",
+      "name": "cache-remote-wsl",
+      "label": "Cache 远程 WSL",
+      "kind": "remote-wsl",
       "protection": "cache",
       "host": "192.168.1.100",
       "port": 22,
@@ -18,6 +19,7 @@
     {
       "name": "tlb-protection-board",
       "label": "TLB 防护板",
+      "kind": "fpga-ssh",
       "protection": "tlb",
       "host": "192.168.1.50",
       "port": 22,

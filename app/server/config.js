@@ -40,6 +40,7 @@ export function publicTarget(target) {
   return {
     name: target.name,
     label: target.label || target.name,
+    kind: target.kind || "ssh",
     protection: target.protection || target.name,
     host: target.host,
     port: target.port,
