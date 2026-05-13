@@ -95,11 +95,6 @@ int main(int argc, char *argv[]) {
         }
         
 		uint8_t* ciphertext = cipher(buffer, n);
-		for (int i = 0; i < BUFFER_SIZE; i++) {
-			printf("%02x", ciphertext[i]);
-		}
-		printf("\n");
-		fflush(stdout);
 		
 		// 5. 回复客户端
         const char *reply = "!";

@@ -141,7 +141,15 @@ export class UnprotectedSession {
     this.log("mallory", `启动 Prime+Probe 密钥恢复 samples=${recovery.samples} sets=${recovery.cacheSets} lineShift=${recovery.lineShift} level=${recovery.cacheLevel} start=${recovery.start} count=${recovery.count}`);
     this.spawnRole(
       "mallory",
-      `taskset -c ${this.status.core} ./mallory ${recovery.samples} ${recovery.cacheSets} ${recovery.lineShift} ${recovery.cacheLevel} ${recovery.start} ${recovery.count}`
+      [
+        `taskset -c ${this.status.core} ./mallory`,
+        `--num-samples ${recovery.samples}`,
+        `--cache-sets ${recovery.cacheSets}`,
+        `--line-shift ${recovery.lineShift}`,
+        `--cache-level ${recovery.cacheLevel}`,
+        `--key-start ${recovery.start}`,
+        `--key-length ${recovery.count}`
+      ].join(" ")
     );
     return this.snapshot();
   }
@@ -347,7 +355,7 @@ export class UnprotectedSession {
       lineShift: this.config.unprotected.defaultLineShift,
       cacheLevel: this.config.unprotected.defaultCacheLevel,
       start: 0,
-      count: 1
+      count: 16
     };
   }
 
@@ -356,7 +364,7 @@ export class UnprotectedSession {
     const recovery = {
       samples: this.safeNumber(options.samples, defaults.samples, 1000, 5000000),
       cacheSets: this.safeNumber(options.cacheSets, defaults.cacheSets, 1, 1024),
-      lineShift: this.safeNumber(options.lineShift, defaults.lineShift, 0, 12),
+      lineShift: this.safeNumber(options.lineShift, defaults.lineShift, 1, 12),
       cacheLevel: this.safeNumber(options.cacheLevel, defaults.cacheLevel, 1, 1),
       start: this.safeNumber(options.start, defaults.start, 0, 15),
       count: this.safeNumber(options.count, defaults.count, 1, 16)

@@ -48,9 +48,9 @@
     "distro": "Ubuntu",
     "defaultCore": "0",
     "defaultKey": "00112233445566778899aabbccddeeff",
-    "defaultSamples": 200000,
+    "defaultSamples": 1000000,
     "defaultCacheSets": 64,
-    "defaultLineShift": 6,
+    "defaultLineShift": 4,
     "defaultCacheLevel": 1,
     "appPort": 8899,
     "buildOnStart": true

@@ -1,8 +1,7 @@
 #include "pp.h"
+#include "mastik/synctrace.h"
 
 #include <stdlib.h>
-
-#include <mastik/synctrace.h>
 
 static const uint8_t sbox[256] = {
     0x63,0x7c,0x77,0x7b,0xf2,0x6b,0x6f,0xc5,0x30,0x01,0x67,0x2b,0xfe,0xd7,0xab,0x76,
@@ -24,7 +23,7 @@ static const uint8_t sbox[256] = {
 };
 
 static unsigned CACHE_SETS			= 64;
-static unsigned CACHE_LINE_SHIFT	= 6;
+static unsigned CACHE_LINE_SHIFT	= 4;
 static unsigned CACHE_LEVEL			= 1;
 
 void pp_init(unsigned cache_sets, unsigned cache_line_shift, unsigned cache_level) {
