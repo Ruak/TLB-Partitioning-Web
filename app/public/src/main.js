@@ -39,50 +39,49 @@ const commandLabels = {
   runPerfConcurrent: "Hackbench 并发调度压力测试"
 };
 
-const reportCharts = {
+const chartColors = {
+  unprotected: "#2b78aa",
+  protected: "#dd7416",
+  missNoProtection: "#e84b40",
+  hitNoProtection: "#ef9289",
+  missProtected: "#31c976",
+  hitProtected: "#82d9a4",
+  partition: "#2b78aa"
+};
+
+const fixedReportData = {
   cacheLatency: {
     selector: "#cacheLatencyChart",
     unit: "Clock Cycles",
     categories: ["1st", "2nd", "3rd", "4th"],
     series: [
-      { name: "Miss 无防护", color: "#e84b40", values: [105, 70, 60, 59] },
-      { name: "Hit 无防护", color: "#ef9289", values: [12, 12, 0, 12] },
-      { name: "Miss 有防护", color: "#31c976", values: [105, 70, 60, 59] },
-      { name: "Hit 有防护", color: "#82d9a4", values: [12, 12, 0, 12] }
+      { name: "Miss 无防护", color: chartColors.missNoProtection, values: [105, 70, 60, 59] },
+      { name: "Hit 无防护", color: chartColors.hitNoProtection, values: [12, 12, 0, 12] }
     ]
   },
-  coremark: {
+  partition: {
     selector: "#coremarkChart",
-    unit: "Iterations/Sec",
-    categories: ["无防护", "有防护"],
-    series: [{ name: "CoreMark", color: "#2b78aa", values: [153, 153] }]
+    unit: "cyc",
+    categories: ["8", "16", "32"],
+    fallbackValues: [0, 0, 0]
   },
   processSwitch: {
     selector: "#processSwitchChart",
     unit: "us/switch",
     categories: ["100", "1000", "100000"],
-    series: [
-      { name: "无防护", color: "#2b78aa", values: [846.59, 815.32, 826.93] },
-      { name: "有防护", color: "#dd7416", values: [917.19, 907.41, 948.98] }
-    ]
+    baseline: [846.59, 815.32, 826.93]
   },
   threadSwitch: {
     selector: "#threadSwitchChart",
     unit: "us/switch",
     categories: ["100", "1000", "200000"],
-    series: [
-      { name: "无防护", color: "#2b78aa", values: [985.34, 930.22, 898.43] },
-      { name: "有防护", color: "#dd7416", values: [897.42, 993.16, 1016.36] }
-    ]
+    baseline: [985.34, 930.22, 898.43]
   },
   hackbench: {
     selector: "#hackbenchChart",
     unit: "us/switch",
     categories: ["10", "100", "1000", "10000"],
-    series: [
-      { name: "无防护", color: "#2b78aa", values: [1454.6, 873.12, 825.73, 821.6] },
-      { name: "有防护", color: "#dd7416", values: [1614.71, 915.28, 872.92, 862.25] }
-    ]
+    baseline: [1454.6, 873.12, 825.73, 821.6]
   }
 };
 
@@ -119,6 +118,283 @@ function stripAnsi(value) {
     .replace(/\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~]|\][^\x07]*(?:\x07|\x1B\\))/g, "")
     .replace(/\r\n/g, "\n")
     .replace(/\r/g, "\n");
+}
+
+function collectResultOutputs(preferredResult = null) {
+  const outputs = [];
+  const seen = new Set();
+  const push = (result) => {
+    const output = stripAnsi(result?.output || "");
+    if (!output || seen.has(output)) return;
+    seen.add(output);
+    outputs.push(output);
+  };
+
+  push(preferredResult);
+  push(state.latestResult);
+  Object.values(state.resultsByCommand || {}).forEach(push);
+  return outputs.join("\n");
+}
+
+function parseSignedInt(value) {
+  const parsed = Number.parseInt(value, 10);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function parsePartitionSummaries(output) {
+  const text = stripAnsi(output);
+  const summaries = [];
+  const blockPattern = /====[^\n]*EVICT_PAGES=(\d+)[^\n]*====([\s\S]*?)(?=\n====[^\n]*EVICT_PAGES=|\s*$)/g;
+  let match;
+
+  while ((match = blockPattern.exec(text))) {
+    const block = match[2];
+    const deltaAvg = block.match(/SUMMARY:\s*delta_avg\(mean\/median\)=(-?\d+)\/(-?\d+)\s*cyc/);
+    const deltaP50 = block.match(/SUMMARY:\s*delta_p50\(mean\/median\/min\/max\)=(-?\d+)\/(-?\d+)\/(-?\d+)\/(-?\d+)\s*cyc/);
+    const deltaP90 = block.match(/SUMMARY:\s*delta_p90\(mean\/median\/min\/max\)=(-?\d+)\/(-?\d+)\/(-?\d+)\/(-?\d+)\s*cyc/);
+    const sid = block.match(/SUMMARY:\s*sid_not_separated_runs=(\d+)\/(\d+),\s*total_timeout\(base\/attack\)=(\d+)\/(\d+)/);
+    const verdict = block.match(/VERDICT:\s*([^\n]+)/);
+
+    summaries.push({
+      evictPages: parseSignedInt(match[1]),
+      deltaAvg: deltaAvg ? { mean: parseSignedInt(deltaAvg[1]), median: parseSignedInt(deltaAvg[2]) } : null,
+      deltaP50: deltaP50
+        ? {
+            mean: parseSignedInt(deltaP50[1]),
+            median: parseSignedInt(deltaP50[2]),
+            min: parseSignedInt(deltaP50[3]),
+            max: parseSignedInt(deltaP50[4])
+          }
+        : null,
+      deltaP90: deltaP90
+        ? {
+            mean: parseSignedInt(deltaP90[1]),
+            median: parseSignedInt(deltaP90[2]),
+            min: parseSignedInt(deltaP90[3]),
+            max: parseSignedInt(deltaP90[4])
+          }
+        : null,
+      sidNotSeparatedRuns: sid ? parseSignedInt(sid[1]) : 0,
+      sidTotalRuns: sid ? parseSignedInt(sid[2]) : 0,
+      timeoutBase: sid ? parseSignedInt(sid[3]) : 0,
+      timeoutAttack: sid ? parseSignedInt(sid[4]) : 0,
+      verdict: verdict ? verdict[1].trim() : ""
+    });
+  }
+
+  return summaries.sort((a, b) => a.evictPages - b.evictPages);
+}
+
+function parseSwitchResults(output, type) {
+  const patterns = {
+    process: /ctxswitch_proc\s+iterations=(\d+)\s+total=([0-9.]+)\s*ms\s+per_switch=([0-9.]+)\s*ns/g,
+    thread: /ctxswitch_thread\s+iterations=(\d+)\s+total=([0-9.]+)\s*ms\s+per_switch=([0-9.]+)\s*ns/g,
+    hackbench: /hackbench_like\s+process\s+groups=(\d+)\s+loops=(\d+)\s+total=([0-9.]+)\s*ms\s+per_switch=([0-9.]+)\s*ns/g
+  };
+  const pattern = patterns[type];
+  const results = new Map();
+  let match;
+
+  while ((match = pattern.exec(stripAnsi(output)))) {
+    const key = type === "hackbench" ? match[2] : match[1];
+    const totalMs = Number.parseFloat(type === "hackbench" ? match[3] : match[2]);
+    const perSwitchNs = Number.parseFloat(type === "hackbench" ? match[4] : match[3]);
+    results.set(key, {
+      key,
+      totalMs,
+      perSwitchNs,
+      perSwitchUs: perSwitchNs / 1000
+    });
+  }
+
+  return results;
+}
+
+function parseCollectedMeasurements(preferredResult = null) {
+  const output = collectResultOutputs(preferredResult);
+  return {
+    partition: parsePartitionSummaries(output),
+    process: parseSwitchResults(output, "process"),
+    thread: parseSwitchResults(output, "thread"),
+    hackbench: parseSwitchResults(output, "hackbench")
+  };
+}
+
+function valuesFromMap(resultMap, categories) {
+  return categories.map((category) => resultMap.get(category)?.perSwitchUs ?? null);
+}
+
+function realValuesFromMap(resultMap, categories) {
+  return categories.map((category) => resultMap.get(category)?.perSwitchUs ?? null);
+}
+
+function formatPercent(value) {
+  if (!Number.isFinite(value)) return "--";
+  const abs = Math.abs(value);
+  const digits = abs >= 10 ? 1 : 2;
+  return `${value.toFixed(digits).replace(/\.?0+$/, "")}%`;
+}
+
+function formatOverheadRange(baseline, realValues) {
+  const values = realValues
+    .map((value, index) => {
+      if (!Number.isFinite(value) || !Number.isFinite(baseline[index]) || baseline[index] === 0) return null;
+      return ((value - baseline[index]) / baseline[index]) * 100;
+    })
+    .filter((value) => Number.isFinite(value));
+
+  if (!values.length) return "等待采集";
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  if (Math.abs(max - min) < 0.01) return formatPercent(max);
+  return `${formatPercent(min)} - ${formatPercent(max)}`;
+}
+
+function buildReportCharts(parsed = parseCollectedMeasurements()) {
+  const partitionByEvict = new Map(parsed.partition.map((item) => [String(item.evictPages), item]));
+  const partitionValues = fixedReportData.partition.categories.map((category, index) => {
+    const summary = partitionByEvict.get(category);
+    return summary?.deltaP50 ? Math.abs(summary.deltaP50.median) : null;
+  });
+  const partitionSeries = parsed.partition.length
+    ? [{ name: "|delta_p50 median|", color: chartColors.partition, values: partitionValues }]
+    : [];
+  const processSeries = [
+    { name: "无防护", color: chartColors.unprotected, values: fixedReportData.processSwitch.baseline }
+  ];
+  const threadSeries = [
+    { name: "无防护", color: chartColors.unprotected, values: fixedReportData.threadSwitch.baseline }
+  ];
+  const hackbenchSeries = [
+    { name: "无防护", color: chartColors.unprotected, values: fixedReportData.hackbench.baseline }
+  ];
+
+  if (parsed.process.size) {
+    processSeries.push({
+      name: "有防护",
+      color: chartColors.protected,
+      values: valuesFromMap(parsed.process, fixedReportData.processSwitch.categories)
+    });
+  }
+  if (parsed.thread.size) {
+    threadSeries.push({
+      name: "有防护",
+      color: chartColors.protected,
+      values: valuesFromMap(parsed.thread, fixedReportData.threadSwitch.categories)
+    });
+  }
+  if (parsed.hackbench.size) {
+    hackbenchSeries.push({
+      name: "有防护",
+      color: chartColors.protected,
+      values: valuesFromMap(parsed.hackbench, fixedReportData.hackbench.categories)
+    });
+  }
+
+  return {
+    cacheLatency: fixedReportData.cacheLatency,
+    partition: {
+      selector: fixedReportData.partition.selector,
+      unit: fixedReportData.partition.unit,
+      categories: fixedReportData.partition.categories,
+      series: partitionSeries
+    },
+    processSwitch: {
+      selector: fixedReportData.processSwitch.selector,
+      unit: fixedReportData.processSwitch.unit,
+      categories: fixedReportData.processSwitch.categories,
+      series: processSeries
+    },
+    threadSwitch: {
+      selector: fixedReportData.threadSwitch.selector,
+      unit: fixedReportData.threadSwitch.unit,
+      categories: fixedReportData.threadSwitch.categories,
+      series: threadSeries
+    },
+    hackbench: {
+      selector: fixedReportData.hackbench.selector,
+      unit: fixedReportData.hackbench.unit,
+      categories: fixedReportData.hackbench.categories,
+      series: hackbenchSeries
+    }
+  };
+}
+
+function updateReportBadges(parsed = parseCollectedMeasurements()) {
+  const sidBadRuns = parsed.partition.reduce((sum, item) => sum + item.sidNotSeparatedRuns, 0);
+  const sidTotalRuns = parsed.partition.reduce((sum, item) => sum + item.sidTotalRuns, 0);
+  const timeoutTotal = parsed.partition.reduce((sum, item) => sum + item.timeoutBase + item.timeoutAttack, 0);
+  const hasPartition = parsed.partition.length > 0;
+  const partitionOk = hasPartition && sidBadRuns === 0 && timeoutTotal === 0;
+
+  setBadge(
+    $("#partitionOverheadBadge"),
+    !hasPartition ? "muted" : partitionOk ? "good" : "bad",
+    !hasPartition ? "等待采集" : partitionOk ? `SID 0/${sidTotalRuns} 异常` : `异常 ${sidBadRuns}/${sidTotalRuns}`
+  );
+  setBadge(
+    $("#processOverheadBadge"),
+    parsed.process.size ? "idle" : "muted",
+    formatOverheadRange(fixedReportData.processSwitch.baseline, realValuesFromMap(parsed.process, fixedReportData.processSwitch.categories))
+  );
+  setBadge(
+    $("#threadOverheadBadge"),
+    parsed.thread.size ? "idle" : "muted",
+    formatOverheadRange(fixedReportData.threadSwitch.baseline, realValuesFromMap(parsed.thread, fixedReportData.threadSwitch.categories))
+  );
+  setBadge(
+    $("#hackbenchOverheadBadge"),
+    parsed.hackbench.size ? "idle" : "muted",
+    formatOverheadRange(fixedReportData.hackbench.baseline, realValuesFromMap(parsed.hackbench, fixedReportData.hackbench.categories))
+  );
+}
+
+function summarizeLatestResult(result) {
+  const output = stripAnsi(result?.output || "");
+  if (!output) return "暂无采集数据";
+
+  const lines = [];
+  const partitions = parsePartitionSummaries(output);
+  if (partitions.length) {
+    lines.push("防护有效性 SUMMARY");
+    partitions.forEach((item) => {
+      const deltaAvg = item.deltaAvg ? `${item.deltaAvg.mean}/${item.deltaAvg.median}` : "--";
+      const deltaP50 = item.deltaP50
+        ? `${item.deltaP50.mean}/${item.deltaP50.median}/${item.deltaP50.min}/${item.deltaP50.max}`
+        : "--";
+      const deltaP90 = item.deltaP90
+        ? `${item.deltaP90.mean}/${item.deltaP90.median}/${item.deltaP90.min}/${item.deltaP90.max}`
+        : "--";
+      lines.push(
+        `EVICT_PAGES=${item.evictPages}: delta_avg mean/median=${deltaAvg} cyc; ` +
+          `delta_p50 mean/median/min/max=${deltaP50} cyc; ` +
+          `delta_p90 mean/median/min/max=${deltaP90} cyc; ` +
+          `SID异常=${item.sidNotSeparatedRuns}/${item.sidTotalRuns}; ` +
+          `timeout=${item.timeoutBase}/${item.timeoutAttack}; verdict=${item.verdict || "--"}`
+      );
+    });
+  }
+
+  const process = parseSwitchResults(output, "process");
+  const thread = parseSwitchResults(output, "thread");
+  const hackbench = parseSwitchResults(output, "hackbench");
+
+  const appendSwitchLines = (title, resultMap, keyLabel) => {
+    if (!resultMap.size) return;
+    if (lines.length) lines.push("");
+    lines.push(title);
+    resultMap.forEach((item) => {
+      lines.push(
+        `${keyLabel}=${item.key}: total=${item.totalMs.toFixed(3)} ms; per_switch=${item.perSwitchUs.toFixed(2)} us`
+      );
+    });
+  };
+
+  appendSwitchLines("进程上下文切换", process, "iterations");
+  appendSwitchLines("线程上下文切换", thread, "iterations");
+  appendSwitchLines("Hackbench 并发调度", hackbench, "loops");
+
+  return lines.filter(Boolean).join("\n") || "暂无可绘制采集数据";
 }
 
 function setPill(node, className, text) {
@@ -358,7 +634,8 @@ function renderLatestResult(result) {
   $("#latestCommand").textContent = result?.command || "--";
   $("#latestStartedAt").textContent = result?.startedAt || "--";
   $("#latestEndedAt").textContent = result?.endedAt || "--";
-  $("#latestOutput").textContent = result?.output ? stripAnsi(result.output) : "暂无输出";
+  $("#latestOutput").textContent = summarizeLatestResult(result);
+  renderReportCharts();
   renderProtectedState();
   renderOverview();
 }
@@ -516,7 +793,9 @@ function bindEventSource() {
 }
 
 function renderReportCharts() {
-  Object.values(reportCharts).forEach(drawGroupedBarChart);
+  const parsed = parseCollectedMeasurements();
+  Object.values(buildReportCharts(parsed)).forEach(drawGroupedBarChart);
+  updateReportBadges(parsed);
 }
 
 function drawGroupedBarChart(config) {
@@ -527,15 +806,16 @@ function drawGroupedBarChart(config) {
   const viewBox = svg.getAttribute("viewBox").split(/\s+/).map(Number);
   const width = viewBox[2];
   const height = viewBox[3];
-  const padding = { top: 26, right: 24, bottom: 58, left: 64 };
+  const padding = { top: 62, right: 24, bottom: 58, left: 64 };
   const plotWidth = width - padding.left - padding.right;
   const plotHeight = height - padding.top - padding.bottom;
-  const values = config.series.flatMap((item) => item.values);
-  const maxValue = Math.max(...values) * 1.18;
+  const values = config.series.flatMap((item) => item.values).filter((value) => Number.isFinite(value));
+  const maxValue = Math.max(1, ...values) * 1.18;
   const categoryWidth = plotWidth / config.categories.length;
   const barGap = 5;
+  const seriesCount = Math.max(1, config.series.length);
   const groupPadding = Math.max(16, categoryWidth * 0.16);
-  const barWidth = Math.max(7, (categoryWidth - groupPadding * 2 - barGap * (config.series.length - 1)) / config.series.length);
+  const barWidth = Math.max(7, (categoryWidth - groupPadding * 2 - barGap * (seriesCount - 1)) / seriesCount);
 
   svg.replaceChildren();
 
@@ -546,8 +826,6 @@ function drawGroupedBarChart(config) {
     svg.appendChild(node);
     return node;
   };
-
-  add("rect", { x: 0, y: 0, width, height, rx: 8, fill: "#eef2ed" });
 
   for (let i = 0; i <= 4; i += 1) {
     const y = padding.top + (plotHeight / 4) * i;
@@ -563,7 +841,8 @@ function drawGroupedBarChart(config) {
   config.categories.forEach((category, categoryIndex) => {
     const groupX = padding.left + categoryIndex * categoryWidth;
     config.series.forEach((series, seriesIndex) => {
-      const value = series.values[categoryIndex] || 0;
+      const value = series.values[categoryIndex];
+      if (!Number.isFinite(value)) return;
       const x = groupX + groupPadding + seriesIndex * (barWidth + barGap);
       const barHeight = maxValue ? (value / maxValue) * plotHeight : 0;
       const y = padding.top + plotHeight - barHeight;
@@ -584,7 +863,7 @@ function drawGroupedBarChart(config) {
   const legendItemWidth = config.series.length > 2 ? 138 : 82;
   const legendBoxWidth = legendColumns * legendItemWidth + 18;
   const legendBoxX = width - padding.right - legendBoxWidth - 10;
-  const legendBoxY = config.series.length > 2 ? padding.top + 8 : padding.top - 8;
+  const legendBoxY = 18;
 
   config.series.forEach((series, index) => {
     const x = legendBoxX + 10 + (index % legendColumns) * legendItemWidth;

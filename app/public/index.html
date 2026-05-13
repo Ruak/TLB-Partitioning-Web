@@ -356,12 +356,12 @@
           <section class="panel">
             <div class="panel-head">
               <div>
-                <span class="eyebrow">原始记录</span>
-                <h2>最近采集输出</h2>
+                <span class="eyebrow">采集记录</span>
+                <h2>最近采集数据</h2>
               </div>
               <button class="btn ghost" id="refreshResultBtn">刷新</button>
             </div>
-            <pre class="record-log" id="latestOutput">暂无输出</pre>
+            <pre class="record-log" id="latestOutput">暂无采集数据</pre>
           </section>
         </section>
 
@@ -369,9 +369,7 @@
           <section class="panel">
             <div class="panel-head">
               <div>
-                <span class="eyebrow">报告第 3.4 节</span>
                 <h2>性能测试结果</h2>
-                <p class="panel-note">暂按《报告.docx》测试部分中的数据绘制，后续可替换为实时采集结果。</p>
               </div>
             </div>
             <div class="chart-grid report-charts">
@@ -381,19 +379,19 @@
                     <span class="eyebrow">Cache</span>
                     <h3>Hit / Miss 访问周期</h3>
                   </div>
-                  <span class="badge good">零额外延迟</span>
+                  <span class="badge muted">无防护基线</span>
                 </div>
                 <svg class="bar-chart" id="cacheLatencyChart" viewBox="0 0 760 320" role="img" aria-label="Cache Hit Miss 访问周期"></svg>
               </article>
               <article class="chart-card">
                 <div class="result-head">
                   <div>
-                    <span class="eyebrow">CoreMark</span>
-                    <h3>基础算力</h3>
+                    <span class="eyebrow">Partition</span>
+                    <h3>防护有效性</h3>
                   </div>
-                  <span class="badge good">153 / 153</span>
+                  <span class="badge good" id="partitionOverheadBadge">等待采集</span>
                 </div>
-                <svg class="bar-chart" id="coremarkChart" viewBox="0 0 520 300" role="img" aria-label="CoreMark 基准测试"></svg>
+                <svg class="bar-chart" id="coremarkChart" viewBox="0 0 520 300" role="img" aria-label="TLB 分区防护有效性"></svg>
               </article>
               <article class="chart-card">
                 <div class="result-head">
@@ -401,7 +399,7 @@
                     <span class="eyebrow">Process</span>
                     <h3>进程上下文切换</h3>
                   </div>
-                  <span class="badge idle">8.33% - 14.5%</span>
+                  <span class="badge idle" id="processOverheadBadge">等待采集</span>
                 </div>
                 <svg class="bar-chart" id="processSwitchChart" viewBox="0 0 520 300" role="img" aria-label="进程上下文切换压力测试"></svg>
               </article>
@@ -411,7 +409,7 @@
                     <span class="eyebrow">Thread</span>
                     <h3>线程上下文切换</h3>
                   </div>
-                  <span class="badge muted">无显著稳定提升</span>
+                  <span class="badge muted" id="threadOverheadBadge">等待采集</span>
                 </div>
                 <svg class="bar-chart" id="threadSwitchChart" viewBox="0 0 520 300" role="img" aria-label="线程上下文切换压力测试"></svg>
               </article>
@@ -421,7 +419,7 @@
                     <span class="eyebrow">Hackbench</span>
                     <h3>并发调度压力</h3>
                   </div>
-                  <span class="badge idle">约 4.8% - 11%</span>
+                  <span class="badge idle" id="hackbenchOverheadBadge">等待采集</span>
                 </div>
                 <svg class="bar-chart" id="hackbenchChart" viewBox="0 0 520 300" role="img" aria-label="Hackbench 并发调度压力测试"></svg>
               </article>
